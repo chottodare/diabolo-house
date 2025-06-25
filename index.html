@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍕 Pizza Filter App 🍕</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables for theming */
+        :root {
+            /* Light Mode Colors */
+            --bg-color: #F8F5F2;
+            --main-content-bg: #FFFFFF;
+            --sidebar-bg: #F8F5F2;
+            --primary-text-color: #1A1A1A;
+            --secondary-text-color: #333333;
+            --border-color: #E0DEDC;
+            --accent-color: #E05244;
+            --title-color: #DA2D2D;
+            --button-primary-bg: #DAA520;
+            --button-primary-text: #1A1A1A;
+            --button-primary-hover-bg: #FF4500;
+            --button-secondary-bg: #E05244;
+            --button-secondary-text: #1A1A1A;
+            --button-secondary-hover-bg: #FF4500;
+            --predefined-btn-bg: #E0DEDC;
+            --predefined-btn-text: #1A1A1A;
+            --predefined-btn-hover-bg: #D0CDC8;
+            --summary-bg: #F0F5F8;
+            --summary-border: #9BC5CE;
+            --summary-text: #2A3642;
+            --disabled-opacity: 0.4;
+            --highlight-include-bg: #D4EDDA;
+            --highlight-include-text: #155724;
+            --highlight-exclude-bg: #F8D7DA;
+            --highlight-exclude-text: #721C24;
+            --info-panel-bg: rgba(255, 255, 255, 0.2);
+            --info-panel-border: rgba(255, 255, 255, 0.3);
+
+            /* Spice Level Gradient Colors */
+            --spice-mild-start: #4ecdc4;
+            --spice-mild-end: #44a08d;
+            --spice-medium-start: #ff9a9e;
+            --spice-medium-end: #fecfef;
+            --spice-hot-start: #ff6b6b;
+            --spice-hot-end: #ff8e53;
+            --spice-extra-hot-start: #cc2b5e;
+            --spice-extra-hot-end: #753a88;
+        }
+
+        /* Dark Mode Colors */
+        body.dark {
+            --bg-color: #1C1C1C;
+            --main-content-bg: #2B2B2B;
+            --sidebar-bg: #1C1C1C;
+            --primary-text-color: #F5E8D8;
+            --secondary-text-color: #D8C8B8;
+            --border-color: #4A4A4A;
+            --accent-color: #FF6F61;
+            --title-color: #FF6F61;
+            --button-primary-bg: #DAA520;
+            --button-primary-text: #1C1C1C;
+            --button-primary-hover-bg: #FF4500;
+            --button-secondary-bg: #FF6F61;
+            --button-secondary-text: #1C1C1C;
+            --button-secondary-hover-bg: #FF4500;
+            --predefined-btn-bg: #3C3C3C;
+            --predefined-btn-text: #F5E8D8;
+            --predefined-btn-hover-bg: #FF6F61;
+            --summary-bg: #3C3C3C;
+            --summary-border: #FF6F61;
+            --summary-text: #F5E8D8;
+            --highlight-include-bg: #285A35;
+            --highlight-include-text: #D4EDDA;
+            --highlight-exclude-bg: #6B272C;
+            --highlight-exclude-text: #F8D7DA;
+            --info-panel-bg: rgba(0, 0, 0, 0.2);
+            --info-panel-border: rgba(255, 255, 255, 0.1);
+
+             /* Spice Level Gradient Colors - Dark Mode */
+            --spice-mild-start: #1f6e69;
+            --spice-mild-end: #1a574a;
+            --spice-medium-start: #b36b6e;
+            --spice-medium-end: #b190a7;
+            --spice-hot-start: #b34a4a;
+            --spice-hot-end: #b3623a;
+            --spice-extra-hot-start: #8e1e41;
+            --spice-extra-hot-end: #51285c;
+        }
+
+        /* General Styles */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Spotlight Effect that follows the mouse */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle 300px at var(--mouse-x, -300px) var(--mouse-y, -300px), 
+                        rgba(255, 255, 255, 0.15) 0%, 
+                        rgba(255, 255, 255, 0.05) 30%, 
+                        transparent 70%);
+            pointer-events: none;
+            z-index: 1001;
+            transition: opacity 0.2s ease;
+        }
+
+        body.dark::before {
+             background: radial-gradient(circle 300px at var(--mouse-x, -300px) var(--mouse-y, -300px), 
+                        rgba(255, 255, 255, 0.1) 0%, 
+                        rgba(255, 255, 255, 0.03) 30%, 
+                        transparent 70%);
+        }
+
+        .main-wrapper {
+            background-color: var(--main-content-bg);
+            color: var(--primary-text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+        aside {
+            background-color: var(--sidebar-bg);
+            transition: background-color 0.3s ease;
+        }
+        
+        /* --- START: Pizza Card Styles --- */
+        .pizza-card {
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            min-height: 280px;
+            perspective: 1500px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 10;
+        }
+
+        .pizza-card:hover {
+            transform: scale(1.05);
+        }
+
+        .pizza-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s ease, box-shadow 0.3s ease;
+            transform-style: preserve-3d;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .pizza-card:hover .pizza-card-inner {
+             box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .pizza-card.flipped .pizza-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .pizza-card-front, .pizza-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 15px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+            color: white;
+        }
+
+        /* --- Spice Level Gradient Backgrounds --- */
+        .pizza-card[data-spice="mild"] .pizza-card-front,
+        .pizza-card[data-spice="mild"] .pizza-card-back { 
+            background: linear-gradient(135deg, var(--spice-mild-start), var(--spice-mild-end)); 
+        }
+
+        .pizza-card[data-spice="medium"] .pizza-card-front,
+        .pizza-card[data-spice="medium"] .pizza-card-back {
+            background: linear-gradient(135deg, var(--spice-medium-start), var(--spice-medium-end));
+        }
+
+        .pizza-card[data-spice="hot"] .pizza-card-front,
+        .pizza-card[data-spice="hot"] .pizza-card-back {
+            background: linear-gradient(135deg, var(--spice-hot-start), var(--spice-hot-end));
+        }
+
+        .pizza-card[data-spice="extra-hot"] .pizza-card-front,
+        .pizza-card[data-spice="extra-hot"] .pizza-card-back {
+            background: linear-gradient(135deg, var(--spice-extra-hot-start), var(--spice-extra-hot-end));
+        }
+
+
+        .pizza-card-front h3{
+             font-size: 1.5rem;
+             text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .pizza-card-front p {
+            font-style: italic;
+            margin-top: 1rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .add-to-cart-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: transform 0.2s ease, background-color 0.2s;
+            border: none;
+        }
+        .add-to-cart-btn:hover {
+            transform: scale(1.1);
+            background: rgba(0,0,0,0.4);
+        }
+        .add-to-cart-btn.added {
+             color: var(--accent-color);
+        }
+
+
+        .pizza-card-back {
+            transform: rotateY(180deg);
+            justify-content: space-around;
+            align-items: stretch;
+            text-align: left;
+        }
+        
+        .info-panel {
+            background-color: var(--info-panel-bg);
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: 1px solid var(--info-panel-border);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+        }
+
+        .info-panel h4 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .ingredients-list {
+            font-size: 13px;
+            overflow-y: auto;
+            max-height: 80px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            text-align: center;
+        }
+
+        .ingredients-list::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .price-info {
+            text-align: center;
+        }
+        /* --- END: Pizza Card Styles --- */
+        
+        /* --- START: History Styles --- */
+        #history {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        #historyToggleButton {
+             width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            color: var(--button-secondary-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+            border: none;
+            position: relative;
+        }
+        #historyToggleButton:hover {
+            transform: scale(1.1);
+        }
+        #historyItemCount {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--button-primary-bg);
+            color: var(--button-primary-text);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        #historyContentPanel {
+            position: absolute;
+            bottom: 80px; /* Position above button */
+            left: 0;
+            width: 90vw;
+            max-width: 320px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--summary-bg);
+            border: 1px solid var(--summary-border);
+            color: var(--summary-text);
+            border-radius: 0.75rem;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #historyContentPanel.is-expanded {
+             opacity: 1;
+             pointer-events: auto;
+             transform: translateY(0);
+        }
+        #closeHistoryPanelBtn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+        }
+        #historyItemsContainer {
+            overflow-y: auto;
+            flex-grow: 1;
+            margin: 1rem 0;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        .history-item-details {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .remove-from-history-btn {
+            background: none;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #clearHistoryBtn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        /* --- END: History Styles --- */
+        
+        /* --- START: Notification Style --- */
+        #notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background-color: var(--accent-color);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        #notification.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        /* --- END: Notification Style --- */
+
+        /* --- START: Refined Filter Styles --- */
+        aside h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .filter-group { 
+            background-color: var(--main-content-bg);
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+        body.dark .filter-group {
+             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .filter-group:hover {
+            transform: scale(1.03);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+            z-index: 11;
+        }
+         body.dark .filter-group:hover {
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+        }
+        .filter-label { font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; color: var(--primary-text-color); }
+        input[type="range"] { width: 100%; -webkit-appearance: none; height: 8px; border-radius: 5px; background: var(--border-color); outline: none; opacity: 0.7; transition: opacity .15s ease-in-out, background 0.3s ease; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-color); cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transition: background-color 0.3s ease; }
+        input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-color); cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transition: background-color 0.3s ease; }
+        
+        .size-selector {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .size-selector label {
+            flex: 1;
+        }
+        .size-selector input[type="radio"] {
+            display: none;
+        }
+        .size-selector span {
+            display: block;
+            text-align: center;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .size-selector input[type="radio"]:checked + span {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        #ingredientFilters details {
+            margin-bottom: 0.5rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        #ingredientFilters details[open] {
+            background-color: var(--main-content-bg);
+        }
+        #ingredientFilters summary {
+            padding: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #ingredientFilters summary::after {
+            content: '▼';
+            transition: transform 0.3s ease;
+        }
+        #ingredientFilters details[open] summary::after {
+            transform: rotate(180deg);
+        }
+        #ingredientFilters .ingredient-list-wrapper {
+            padding: 0 0.75rem 0.75rem 0.75rem;
+        }
+        /* --- END: Refined Filter Styles --- */
+        
+        .suggestion-card { background-color: var(--main-content-bg); border: 2px dashed var(--accent-color); padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); text-align: center; transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
+        .suggestion-card h3 { color: var(--accent-color); }
+        
+        .predefined-filter-btn { background-color: var(--predefined-btn-bg); color: var(--predefined-btn-text); padding: 0.5rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease; }
+        .predefined-filter-btn:hover { background-color: var(--predefined-btn-hover-bg); transform: translateY(-1px); }
+        .predefined-filter-btn.active { background-color: var(--accent-color); border: 2px solid var(--accent-color); color: var(--primary-text-color); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .ingredient-item.disabled { opacity: var(--disabled-opacity); cursor: default; }
+        .ingredient-item.disabled .toggle7 { cursor: default; pointer-events: none; }
+        .scroll-to-top-btn { position: fixed; bottom: 20px; right: 100px; background-color: var(--accent-color); color: var(--primary-text-color); padding: 12px 18px; border-radius: 50%; font-size: 1.5rem; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: none; cursor: pointer; transition: background-color 0.3s ease, transform 0.2s ease, opacity 0.3s ease, color 0.3s ease; z-index: 1000; }
+        .scroll-to-top-btn:hover { background-color: var(--button-primary-hover-bg); transform: translateY(-2px); }
+        .main-title { color: var(--title-color); transition: color 0.3s ease; }
+        #themeToggleBtn { background-color: var(--predefined-btn-bg); color: var(--predefined-btn-text); transition: background-color 0.3s ease, color 0.3s ease; }
+        #themeToggleBtn:hover { background-color: var(--predefined-btn-hover-bg); }
+        .action-button { font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105; }
+        #randomPizzaBtn { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
+        #randomPizzaBtn:hover { background-color: var(--button-primary-hover-bg); }
+        #halfHalfPizzaBtn { background-color: var(--button-secondary-bg); color: var(--button-secondary-text); }
+        #halfHalfPizzaBtn:hover { background-color: var(--button-secondary-hover-bg); }
+        #filterSummary { position: fixed; bottom: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; align-items: flex-end; }
+        #filterToggleButton { width: 64px; height: 64px; border-radius: 50%; background-color: var(--accent-color); color: var(--primary-text-color); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); cursor: pointer; transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease; position: relative; z-index: 2; }
+        #filterToggleButton:hover { transform: scale(1.05); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); }
+        #filterContentPanel { position: absolute; bottom: 0; right: 0; width: 300px; max-height: 80vh; overflow-y: auto; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25); background-color: var(--summary-bg); border: 1px solid var(--summary-border); color: var(--summary-text); opacity: 0; pointer-events: none; transform: scale(0.8) translateY(20px); transform-origin: bottom right; transition: opacity 0.4s ease-out, transform 0.4s ease-out; z-index: 1; }
+        #filterContentPanel.is-expanded { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); bottom: calc(64px + 16px); right: 0; }
+        #closeFilterPanelBtn { position: absolute; top: 0.5rem; right: 0.75rem; background: none; border: none; font-size: 1.75rem; line-height: 1; color: var(--secondary-text-color); cursor: pointer; transition: color 0.2s ease; }
+        #closeFilterPanelBtn:hover { color: var(--primary-text-color); }
+        .filter-bubble { border: 1px solid transparent; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; display: inline-flex; align-items: center; }
+        .filter-bubble .close-bubble-btn { color: inherit; opacity: 0.7; margin-left: 0.5rem; cursor: pointer; background: none; border: none; font-size: 1.2em; line-height: 1; padding: 0; transition: opacity 0.2s ease; }
+        .filter-bubble .close-bubble-btn:hover { opacity: 1; }
+        .filter-bubble.scale-0 { transform: scale(0); opacity: 0; }
+        .filter-bubble.scale-100 { transform: scale(1); opacity: 1; }
+        .filter-bubble.bubble-predefined { background-color: var(--accent-color); color: var(--primary-text-color); border-color: var(--accent-color); }
+        .filter-bubble.bubble-ingredient-include { background-color: var(--highlight-include-bg); color: var(--highlight-include-text); border-color: var(--highlight-include-text); }
+        .filter-bubble.bubble-ingredient-exclude { background-color: var(--highlight-exclude-bg); color: var(--highlight-exclude-text); border-color: var(--highlight-exclude-text); }
+        .filter-bubble.bubble-size { background-color: var(--predefined-btn-bg); color: var(--predefined-btn-text); border-color: var(--border-color); }
+        .ingredient-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; margin-bottom: 0.5rem; background-color: var(--main-content-bg); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, opacity 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+        .ingredient-item:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .ingredient-item.state-include { background-color: var(--highlight-include-bg); border-color: var(--highlight-include-text); color: var(--highlight-include-text) !important; }
+        .ingredient-item.state-exclude { background-color: var(--highlight-exclude-bg); border-color: var(--highlight-exclude-text); color: var(--highlight-exclude-text) !important; }
+        .ingredient-item span { color: inherit; transition: color 0.3s ease; }
+        .toggle7 { position: relative; width: 60px; height: 30px; background: var(--highlight-exclude-text); border-radius: 25px; cursor: pointer; transition: background 0.5s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); overflow: hidden; flex-shrink: 0; }
+        .toggle7::before { content: '✕'; position: absolute; top: 50%; left: 3px; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: var(--highlight-exclude-text); background: white; border-radius: 50%; transform: translateY(-50%) translateX(0px); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.4s ease; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3); z-index: 2; }
+        .toggle7::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--predefined-btn-bg); transition: transform 0.5s ease, background 0.5s ease; transform: translateX(-100%); z-index: 1; }
+        .toggle7[data-state="none"] { background: var(--predefined-btn-bg); }
+        .toggle7[data-state="none"]::before { content: '○'; color: var(--secondary-text-color); transform: translateY(-50%) translateX(14.5px); }
+        .toggle7[data-state="none"]::after { transform: translateX(-100%); }
+        .toggle7[data-state="include"] { background: var(--highlight-include-text); }
+        .toggle7[data-state="include"]::before { content: '✓'; color: var(--highlight-include-text); transform: translateY(-50%) translateX(32px) rotate(360deg); }
+        .toggle7[data-state="include"]::after { transform: translateX(0); background: var(--highlight-include-text); }
+        .toggle7[data-state="exclude"] { background: var(--highlight-exclude-text); }
+        .toggle7[data-state="exclude"]::before { content: '✕'; color: var(--highlight-exclude-text); transform: translateY(-50%) translateX(0px); }
+        .toggle7[data-state="exclude"]::after { transform: translateX(-100%); }
+        @keyframes thumbBounce { 0%, 100% { transform: translateY(-50%) translateX(var(--thumb-translate-x, 0)); } 20% { transform: translateY(calc(-50% - 3px)) translateX(var(--thumb-translate-x, 0)); } 40% { transform: translateY(-50%) translateX(var(--thumb-translate-x, 0)); } 60% { transform: translateY(calc(-50% - 1.5px)) translateX(var(--thumb-translate-x, 0)); } 80% { transform: translateY(-50%) translateX(var(--thumb-translate-x, 0)); } }
+        .toggle7.bouncing::before { animation: thumbBounce 0.6s ease-out; }
+        .toggle7[data-state="none"].bouncing::before { --thumb-translate-x: 14.5px; }
+        .toggle7[data-state="include"].bouncing::before { --thumb-translate-x: 32px; }
+        .toggle7[data-state="exclude"].bouncing::before { --thumb-translate-x: 0px; }
+        @keyframes buttonBounce { 0%, 100% { transform: translateY(0); } 20% { transform: translateY(-8px); } 40% { transform: translateY(0); } 60% { transform: translateY(-4px); } 80% { transform: translateY(0); } }
+        .action-button.bouncing { animation: buttonBounce 0.7s ease-out; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="notification"></div>
+
+    <div class="max-w-7xl mx-auto rounded-lg shadow-xl p-4 sm:p-6 md:p-8 main-wrapper">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold main-title">
+                Znajdź swoją idealną pizzę! 🍕
+            </h1>
+            <button id="themeToggleBtn" class="px-4 py-2 rounded-full shadow-md hover:bg-gray-300 transition duration-300 ease-in-out">
+                Przełącz tryb 🌓
+            </button>
+        </div>
+
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <aside class="w-full lg:w-1/3 xl:w-1/4">
+                <h2 class="text-2xl font-bold filter-label mb-6">Filtry 🔍</h2>
+                <div class="filter-group">
+                    <h3 class="text-xl font-semibold filter-label mb-4">Gotowe filtry ✨</h3>
+                    <div id="predefinedFiltersContainer" class="flex flex-wrap gap-2 mb-4">
+                        <button class="predefined-filter-btn" data-filter-name="Mięsożernych">Mięsożernych 🥩</button>
+                        <button class="predefined-filter-btn" data-filter-name="Wegetarian">Wegetarian 🌱</button>
+                        <button class="predefined-filter-btn" data-filter-name="Ostre">Ostre 🔥</button>
+                        <button class="predefined-filter-btn" data-filter-name="Dla dzieci">Dla dzieci 👶</button>
+                        <button class="predefined-filter-btn" data-filter-name="Reset">Reset 🔄</button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Wybierz rozmiar pizzy:</label>
+                    <div class="size-selector">
+                        <label>
+                            <input type="radio" name="pizzaSize" value="25cm" checked>
+                            <span class="font-bold">25cm</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="pizzaSize" value="35cm">
+                            <span class="font-bold">35cm</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="pizzaSize" value="45cm">
+                            <span class="font-bold">45cm</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="priceRange" class="filter-label">Maksymalna cena (<span id="priceValue"></span> zł)</label>
+                    <input type="range" id="priceRange" min="20" max="70" value="70">
+                </div>
+
+                <div class="filter-group">
+                    <h3 class="text-xl font-semibold filter-label mb-4">Składniki 🥦🥩🧀</h3>
+                    <div id="ingredientFilters"> 
+                        <details>
+                            <summary>Wegańskie 🥦</summary>
+                            <div class="ingredient-list-wrapper" id="veganIngredients"></div>
+                        </details>
+                        <details>
+                            <summary>Mięsne 🥩</summary>
+                             <div class="ingredient-list-wrapper" id="meatIngredients"></div>
+                        </details>
+                        <details>
+                            <summary>Owoce Morza 🦐</summary>
+                             <div class="ingredient-list-wrapper" id="seafoodIngredients"></div>
+                        </details>
+                        <details>
+                            <summary>Inne / Sosy / Sery 🧀</summary>
+                            <div class="ingredient-list-wrapper" id="otherIngredients"></div>
+                        </details>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="w-full lg:w-2/3 xl:w-3/4 pb-24"> <div id="pizzaList" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    </div>
+
+                <div class="mt-10 text-center">
+                    <button id="randomPizzaBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                        Nie mogę się zdecydować? Wylosuj pizzę! 🎲
+                    </button>
+                    <div id="randomPizzaDisplay" class="suggestion-card mt-6 hidden">
+                        </div>
+                </div>
+                
+                 <div class="mt-8 text-center">
+                    <button id="aiPizzaBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" style="background-color: var(--accent-color); color: white;">
+                        ✨ Zaproponuj Pizzę Dnia od AI ✨
+                    </button>
+                    <div id="aiPizzaDisplay" class="suggestion-card mt-6 hidden">
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button id="halfHalfPizzaBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                        Proponuj pizzę pół na pół! 🍕➕🍕
+                    </button>
+                    <div id="halfHalfPizzaDisplay" class="suggestion-card mt-6 hidden">
+                        </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- History Container -->
+    <div id="history">
+        <button id="historyToggleButton">🕒<span id="historyItemCount">0</span></button>
+        <div id="historyContentPanel">
+            <button id="closeHistoryPanelBtn">&times;</button>
+            <h2 class="text-xl font-bold text-center mb-4">Historia</h2>
+            <div id="historyItemsContainer">
+                <!-- History items will be injected here -->
+            </div>
+            <button id="clearHistoryBtn" class="w-full mt-4">Wyczyść historię</button>
+        </div>
+    </div>
+
+
+    <div id="filterSummary">
+        <button id="filterToggleButton">
+            <span id="activeFilterCountButton">0</span>
+        </button>
+        <div id="filterContentPanel">
+            <button id="closeFilterPanelBtn">&times;</button>
+            <p class="font-bold mb-2">Aktywne filtry (<span id="activeFilterCount">0</span>):</p>
+            <div id="filterBubblesContainer" class="flex flex-wrap gap-2 mb-2">
+            </div>
+            <button id="clearAllFiltersBtn" class="mt-2 px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-800 hover:bg-gray-300 transition duration-200 ease-in-out">
+                Wyczyść wszystkie filtry 🧹
+            </button>
+            <p id="filterSummaryText" class="mt-2 text-sm"></p>
+        </div>
+    </div>
+
+    <button id="scrollToTopBtn" class="scroll-to-top-btn">⬆️</button>
+
+    <script>
+        // Pizza data with 'description' and 'spice' fields
+        const pizzas = [
+            { name: "Margherita", spice: "mild", description: "Klasyka włoskiej prostoty. Mniej znaczy więcej.", ingredients: ["sos pomidorowy", "ser", "oregano"], prices: { "25cm": 24, "35cm": 37, "45cm": 45 } },
+            { name: "Capricciosa", spice: "mild", description: "Ulubiona pizza Polaków. Bogactwo smaku w każdym kęsie.", ingredients: ["sos pomidorowy", "ser", "salami", "szynka", "pieczarki", "oregano"], prices: { "25cm": 29, "35cm": 44, "45cm": 52 } },
+            { name: "Chłopska", spice: "mild", description: "Dla prawdziwych głodomorów. Potężna dawka mięsnych składników.", ingredients: ["sos pomidorowy", "ser", "salami", "szynka", "boczek wędzony", "kabanosy", "cebula biała", "oregano"], prices: { "25cm": 38, "35cm": 52, "45cm": 61 } },
+            { name: "Salsa", spice: "medium", description: "Lekko pikantna i kolorowa. Poczuj rytm salsy!", ingredients: ["sos pomidorowy", "ser", "salami", "kukurydza", "papryka konserwowa", "oregano"], prices: { "25cm": 29, "35cm": 44, "45cm": 52 } },
+            { name: "Amigo", spice: "mild", description: "Prosta i wyrazista. Przyjaciel każdej imprezy.", ingredients: ["sos pomidorowy", "ser", "salami", "oliwki zielone", "oregano"], prices: { "25cm": 29, "35cm": 43, "45cm": 51 } },
+            { name: "Pablo", spice: "mild", description: "Pełna mięsnego smaku z nutą oliwek. Po prostu pyszna.", ingredients: ["sos pomidorowy", "ser", "salami", "kabanos", "boczek wędzony", "papryka konserwowa", "oliwki zielone", "oregano"], prices: { "25cm": 38, "35cm": 52, "45cm": 61 } },
+            { name: "La Bamba", spice: "mild", description: "Elegancja i świeżość. Szynka parmeńska i rukola w idealnej harmonii.", ingredients: ["sos pomidorowy", "ser", "szynka", "oliwki czarne", "papryka świeża", "rukola", "oregano"], prices: { "25cm": 32, "35cm": 48, "45cm": 56 } },
+            { name: "Ala Carbonara", spice: "mild", description: "Kremowa i sycąca. Wariacja na temat klasycznego włoskiego dania.", ingredients: ["sos śmietanowy", "ser", "ser pleśniowy", "boczek wędzony", "cebula czerwona", "bazylia", "oregano"], prices: { "25cm": 34, "35cm": 50, "45cm": 59 } },
+            { name: "Diabolo", spice: "extra-hot", description: "Piekielnie ostra! Tylko dla odważnych smakoszy.", ingredients: ["sos pomidorowy", "ser", "salami", "tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "oregano"], prices: { "25cm": 34, "35cm": 48, "45cm": 55 } },
+            { name: "Farmerska", spice: "mild", description: "Smaki prosto z pola. Świeże warzywa i wędliny.", ingredients: ["sos pomidorowy", "ser", "salami", "boczek wędzony", "pomidor", "pieczarki", "cebula biała", "oliwki czarne", "oregano"], prices: { "25cm": 36, "35cm": 51, "45cm": 60 } },
+            { name: "Peperoni", spice: "medium", description: "Klasyk dla fanów pikantnego salami. Prosto i na temat.", ingredients: ["sos pomidorowy", "ser", "peperoni", "oregano"], prices: { "25cm": 28, "35cm": 42, "45cm": 50 } },
+            { name: "Hawajska", spice: "mild", description: "Kontrowersyjna, ale uwielbiana. Słodko-słona kompozycja.", ingredients: ["sos pomidorowy", "ser", "szynka", "ananas", "oregano"], prices: { "25cm": 29, "35cm": 43, "45cm": 51 } },
+            { name: "Italiana", spice: "mild", description: "Prawdziwy smak Włoch. Szynka parmeńska, mozzarella i świeża rukola.", ingredients: ["sos pomidorowy", "ser mozzarella", "pomidor", "szynka parmeńska", "rukola", "bazylia", "oregano"], prices: { "25cm": 36, "35cm": 52, "45cm": 60 } },
+            { name: "Favorita", spice: "hot", description: "Ulubienica tłumów. Pikantne salami i słony ser feta.", ingredients: ["sos pomidorowy", "ser", "salami", "papryka konserwowa", "papryka jalapeno", "ser feta", "oregano"], prices: { "25cm": 33, "35cm": 46, "45cm": 57 } },
+            { name: "Kabanostra", spice: "hot", description: "Męska pizza z charakterem. Kabanos i jalapeno robią robotę.", ingredients: ["sos pomidorowy", "ser", "kabanos", "papryka jalapeno", "oregano"], prices: { "25cm": 29, "35cm": 43, "45cm": 51 } },
+            { name: "Mexicana", spice: "hot", description: "Smaki Meksyku na Twoim talerzu. Pikantna i sycąca.", ingredients: ["sos pomidorowy", "ser", "fasola czerwona", "wieprzowina", "papryka jalapeno", "kukurydza", "oregano"], prices: { "25cm": 34, "35cm": 49, "45cm": 58 } },
+            { name: "Wiejska", spice: "mild", description: "Tradycyjne polskie smaki. Kiełbasa, boczek i ogórek.", ingredients: ["sos pomidorowy", "ser", "kiełbasa", "boczek wędzony", "ogórek konserwowy", "cebula biała", "oregano"], prices: { "25cm": 34, "35cm": 49, "45cm": 57 } },
+            { name: "Góralska", spice: "mild", description: "Solidna porcja wędzonych smaków. Prosto z góralskiej chaty.", ingredients: ["sos pomidorowy", "ser", "ser wędzony", "wieprzowina", "boczek wędzony", "kiełbasa", "oregano"], prices: { "25cm": 38, "35cm": 53, "45cm": 61 } },
+            { name: "Milano", spice: "mild", description: "Kiedy nie możesz się zdecydować, a lubisz kebaba ze słodkim ananasem.", ingredients: ["sos pomidorowy", "ser", "kebab drobiowy", "ananas", "ser mozzarella", "oregano"], prices: { "25cm": 35, "35cm": 50, "45cm": 57 } },
+            { name: "Sombrero", spice: "mild", description: "Kebab w nowej odsłonie. Z ogórkiem i cebulką.", ingredients: ["sos pomidorowy", "ser", "kebab drobiowy", "ogórek konserwowy", "cebula biała", "oregano"], prices: { "25cm": 33, "35cm": 47, "45cm": 54 } },
+            { name: "Kebab", spice: "mild", description: "Po prostu kebab na pizzy. Czego chcieć więcej?", ingredients: ["sos pomidorowy", "ser", "kebab drobiowy", "oregano"], prices: { "25cm": 29, "35cm": 43, "45cm": 51 } },
+            { name: "Hot kebab", spice: "hot", description: "Kebab na ostro. Dla tych, co lubią poczuć ogień.", ingredients: ["sos pomidorowy", "ser", "tabasco", "kebab drobiowy", "cebula czerwona", "oregano"], prices: { "25cm": 30, "35cm": 44, "45cm": 52 } },
+            { name: "Leśna", spice: "mild", description: "Aromatyczna i ziemista. Kurki i boczek to duet idealny.", ingredients: ["sos śmietanowy", "ser", "czosnek", "boczek wędzony", "pierś pieczona", "kurki", "oregano"], prices: { "25cm": 38, "35cm": 53, "45cm": 61 } },
+            { name: "Verona", spice: "mild", description: "Subtelna i elegancka. Pieczona pierś i suszone pomidory.", ingredients: ["sos pomidorowy", "ser", "pierś pieczona", "mozzarella", "oliwki czarne", "suszone pomidory", "oregano"], prices: { "25cm": 34, "35cm": 50, "45cm": 59 } },
+            { name: "Brocoli", spice: "mild", description: "Lekka i zdrowa opcja z kurczakiem i brokułami.", ingredients: ["sos pomidorowy", "ser", "cukinia", "brokuły", "pierś pieczona", "oregano"], prices: { "25cm": 35, "35cm": 49, "45cm": 58 } },
+            { name: "Egzotico", spice: "mild", description: "Słodka ucieczka w tropiki z ananasem i kurczakiem.", ingredients: ["sos pomidorowy", "ser", "pierś pieczona", "kukurydza", "ananas", "oregano"], prices: { "25cm": 33, "35cm": 48, "45cm": 56 } },
+            { name: "Serowa", spice: "mild", description: "Uczta dla seromaniaków. Mieszanka najlepszych serów.", ingredients: ["sos pomidorowy", "ser", "ser pleśniowy", "ser feta", "ser mozzarella", "ser chedar", "oregano"], prices: { "25cm": 38, "35cm": 54, "45cm": 61 } },
+            { name: "Vega", spice: "mild", description: "Kremowy szpinak i słona feta. Wegetariańska doskonałość.", ingredients: ["sos śmietanowy", "ser", "czosnek", "szpinak", "ser feta", "oregano"], prices: { "25cm": 33, "35cm": 45, "45cm": 54 } },
+            { name: "Soprano", spice: "mild", description: "Warzywna symfonia smaków. Kolorowa i pyszna.", ingredients: ["sos pomidorowy", "ser", "papryka konserwowa", "pieczarki", "kukurydza", "cebula czerwona", "oregano"], prices: { "25cm": 34, "35cm": 47, "45cm": 55 } },
+            { name: "Morska", spice: "mild", description: "Smak morza na Twoim talerzu. Dla fanów owoców morza.", ingredients: ["sos pomidorowy", "ser", "mieszanka morska", "oregano"], prices: { "25cm": 38, "35cm": 51, "45cm": 60 } },
+            { name: "Marinero", spice: "mild", description: "Bogactwo morskich skarbów z majonezowym akcentem.", ingredients: ["sos pomidorowy", "ser", "pieczarki", "krewetki", "oliwki zielone", "cebula biała", "majonez", "oregano"], prices: { "25cm": 37, "35cm": 52, "45cm": 62 } },
+            { name: "Gamberetto", spice: "mild", description: "Krewetki i szynka - zaskakujące, ale pyszne połączenie.", ingredients: ["sos pomidorowy", "ser", "krewetki", "szynka", "oliwki czarne", "oregano"], prices: { "25cm": 36, "35cm": 50, "45cm": 59 } },
+            { name: "Tuna", spice: "mild", description: "Klasyczna pizza z tuńczykiem. Sycąca i pełna smaku.", ingredients: ["sos pomidorowy", "ser", "tuńczyk", "cebula biała", "pomidor", "oregano"], prices: { "25cm": 36, "35cm": 50, "45cm": 58 } },
+            { name: "Sycyliana", spice: "hot", description: "Ostra i wyrazista jak Sycylia. Peperoni i czarne oliwki.", ingredients: ["sos pomidorowy", "ser", "peperoni", "jalapeno", "oliwki czarne", "bazylia", "oregano"], prices: { "25cm": 28, "35cm": 52, "45cm": 59 } },
+            { name: "Parma", spice: "mild", description: "Luksusowa kompozycja z szynką parmeńską i serem kozim.", ingredients: ["sos pomidorowy", "ser", "ser kozi", "szynka parmeńska zapieczona", "cukinia", "rukola", "oregano"], prices: { "25cm": 36, "35cm": 62, "45cm": 70 } },
+            { name: "Inferno", spice: "extra-hot", description: "Piekielna jazda bez trzymanki. Ognista i mięsna.", ingredients: ["sos pomidorowy", "ser", "sos boloński", "kabanosy", "suszone pomidory", "papryka peperoni", "pieprz cayene", "oregano"], prices: { "25cm": 32, "35cm": 56, "45cm": 65 } },
+            { name: "Big Tiger", spice: "medium", description: "Królewskie krewetki w roli głównej. Luksus w każdym kęsie.", ingredients: ["czosnek", "ser", "krewetki big tiger", "suszone pomidory", "pietruszka świeża", "oregano"], prices: { "25cm": 49, "35cm": 60, "45cm": 70 } },
+            { name: "Bolonia", spice: "mild", description: "Smak klasycznego bolognese na chrupiącym cieście.", ingredients: ["sos pomidorowy", "ser", "sos boloński", "pierś pieczona", "pomidor", "papryka świeża", "pietruszka świeża", "oregano"], prices: { "25cm": 36, "35cm": 62, "45cm": 70 } }
+        ];
+
+        const ingredientEmojis = { "sos pomidorowy": "🍅", "ser": "🧀", "oregano": "🌿", "salami": "🥓", "szynka": "🍖", "pieczarki": "🍄", "boczek wędzony": "🥓", "kabanosy": "🌭", "cebula biała": "🧅", "kukurydza": "🌽", "papryka konserwowa": "🌶️", "oliwki zielone": "�", "oliwki czarne": "⚫", "papryka świeża": "🌶️", "rukola": "🥬", "sos śmietanowy": "🥛", "ser pleśniowy": "🧀", "cebula czerwona": "🧅", "bazylia": "🌿", "tabasco": "🌶️🔥", "papryka jalapeno": "🌶️", "papryczki piri piri": "🌶️", "czosnek": "🧄", "pomidor": "🍅", "peperoni": "🌶️", "ananas": "🍍", "ser mozzarella": "🧀", "szynka parmeńska": "🍖", "fasola czerwona": "🫘", "wieprzowina": "🥩", "kiełbasa": "🌭", "ogórek konserwowy": "🥒", "ser wędzony": "🧀🔥", "kebab drobiowy": "🍗", "kurki": "🍄", "pierś pieczona": "🍗", "suszone pomidory": "🍅☀️", "cukinia": "🥒", "brokuły": "🥦", "ser feta": "🧀", "ser chedar": "🧀", "szpinak": "🥬", "mieszanka morska": "🦐🦑", "krewetki": "🦐", "majonez": "🥚", "tuńczyk": "🐟", "sos boloński": "🍝", "pieprz cayene": "🌶️", "ser kozi": "🐐🧀", "krewetki big tiger": "🦐", "pietruszka świeża":"🌿", "szynka parmeńska zapieczona":"🍖" };
+        const ingredientCategories = { "Wegańskie": [ "sos pomidorowy", "oregano", "kukurydza", "papryka konserwowa", "oliwki zielone", "oliwki czarne", "papryka świeża", "rukola", "bazylia", "tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "pomidor", "peperoni", "ananas", "suszone pomidory", "cukinia", "brokuły", "szpinak", "pieprz cayene", "cebula biała", "cebula czerwona", "ogórek konserwowy", "fasola czerwona", "pietruszka świeża" ], "Mięsne": [ "salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński", "szynka parmeńska zapieczona" ], "Owoce Morza": [ "mieszanka morska", "krewetki", "tuńczyk", "krewetki big tiger" ], "Inne / Sosy / Sery": [ "ser", "sos śmietanowy", "ser pleśniowy", "ser mozzarella", "ser feta", "ser chedar", "ser wędzony", "majonez", "ser kozi", "kurki" ] };
+        const predefinedFilters = { "Mięsożernych": { setFilters: { "salami": "include", "szynka": "include", "boczek wędzony": "include", "kabanosy": "include", "wieprzowina": "include", "kiełbasa": "include", "kebab drobiowy": "include", "pierś pieczona": "include", "szynka parmeńska": "include", "sos boloński": "include" }, controlledIngredients: ["salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński"], matchAnyIncluded: true }, "Wegetarian": { setFilters: { "salami": "exclude", "szynka": "exclude", "boczek wędzony": "exclude", "kabanosy": "exclude", "wieprzowina": "exclude", "kiełbasa": "exclude", "kebab drobiowy": "exclude", "pierś pieczona": "exclude", "szynka parmeńska": "exclude", "sos boloński": "exclude", "mieszanka morska": "exclude", "krewetki": "exclude", "tuńczyk": "exclude", "krewetki big tiger": "exclude" }, controlledIngredients: [ "salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński", "mieszanka morska", "krewetki", "tuńczyk", "krewetki big tiger" ], matchAnyIncluded: false }, "Ostre": { setFilters: { "tabasco": "include", "papryka jalapeno": "include", "papryczki piri piri": "include", "czosnek": "include", "pieprz cayene": "include" }, controlledIngredients: ["tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "pieprz cayene"], matchAnyIncluded: true, isGarlicMildSpicy: true }, "Dla dzieci": { setFilters: { "ananas": "include", "kukurydza": "include", "szynka": "include", "ser": "include", "tabasco": "exclude", "papryka jalapeno": "exclude", "papryczki piri piri": "exclude", "czosnek": "exclude", "oliwki zielone": "exclude", "oliwki czarne": "exclude", "pieprz cayene": "exclude", "cebula biała": "exclude", "cebula czerwona": "exclude", "rukola": "exclude", "suszone pomidory": "exclude" }, controlledIngredients: [ "ananas", "kukurydza", "szynka", "ser", "tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "oliwki zielone", "oliwki czarne", "pieprz cayene", "cebula biała", "cebula czerwona", "rukola", "suszone pomidory" ], matchAnyIncluded: true } };
+
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const pizzaSizeRadios = document.querySelectorAll('input[name="pizzaSize"]');
+        const priceRange = document.getElementById('priceRange');
+        const priceValue = document.getElementById('priceValue');
+        const ingredientFiltersDiv = document.getElementById('ingredientFilters');
+        const pizzaListDiv = document.getElementById('pizzaList');
+        const randomPizzaBtn = document.getElementById('randomPizzaBtn');
+        const halfHalfPizzaBtn = document.getElementById('halfHalfPizzaBtn');
+        const aiPizzaBtn = document.getElementById('aiPizzaBtn');
+        const randomPizzaDisplay = document.getElementById('randomPizzaDisplay');
+        const halfHalfPizzaDisplay = document.getElementById('halfHalfPizzaDisplay');
+        const aiPizzaDisplay = document.getElementById('aiPizzaDisplay');
+        const filterToggleButton = document.getElementById('filterToggleButton');
+        const filterContentPanel = document.getElementById('filterContentPanel');
+        const closeFilterPanelBtn = document.getElementById('closeFilterPanelBtn');
+        const predefinedFiltersContainer = document.getElementById('predefinedFiltersContainer');
+        const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+        
+        // History elements
+        const historyToggleButton = document.getElementById('historyToggleButton');
+        const historyContentPanel = document.getElementById('historyContentPanel');
+        const closeHistoryPanelBtn = document.getElementById('closeHistoryPanelBtn');
+        const historyItemsContainer = document.getElementById('historyItemsContainer');
+        const historyItemCountEl = document.getElementById('historyItemCount');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+        let filters = { selectedSize: '25cm', maxPrice: 70, ingredients: {}, activePredefinedFilters: [], activeTheme: null };
+        let history = [];
+        
+        function applyTheme(themeName) {
+            document.body.classList.toggle('dark', themeName === 'dark');
+            localStorage.setItem('pizza_app_theme', themeName);
+        }
+        function toggleSystemOrSavedTheme() { applyTheme(localStorage.getItem('pizza_app_theme') === 'dark' ? 'light' : 'dark'); }
+        
+        function populateIngredientFilters() {
+            const allIngredients = new Set(pizzas.flatMap(p => p.ingredients));
+            const categoryDivs = { "Wegańskie": document.getElementById('veganIngredients'), "Mięsne": document.getElementById('meatIngredients'), "Owoce Morza": document.getElementById('seafoodIngredients'), "Inne / Sosy / Sery": document.getElementById('otherIngredients') };
+            Object.values(categoryDivs).forEach(div => div.innerHTML = '');
+            allIngredients.forEach(ingredient => { filters.ingredients[ingredient] = 'none'; });
+
+            for (const categoryName in ingredientCategories) {
+                ingredientCategories[categoryName].sort().forEach(ingredient => {
+                    if (!allIngredients.has(ingredient)) return;
+                    const ingredientDiv = document.createElement('div');
+                    ingredientDiv.className = 'ingredient-item';
+                    ingredientDiv.dataset.ingredient = ingredient;
+                    ingredientDiv.innerHTML = `<span class="text-base">${ingredientEmojis[ingredient] || ''} ${ingredient}</span><div class="toggle7" data-state="none"></div>`;
+                    if (categoryDivs[categoryName]) {
+                        categoryDivs[categoryName].appendChild(ingredientDiv);
+                    }
+                });
+            }
+        }
+
+        function updateIngredientTogglesUI() {
+            document.querySelectorAll('.ingredient-item').forEach(itemDiv => {
+                const ingredient = itemDiv.dataset.ingredient;
+                const isControlled = filters.activePredefinedFilters.some(name => predefinedFilters[name]?.controlledIngredients.includes(ingredient));
+                itemDiv.classList.toggle('disabled', isControlled);
+                const currentState = filters.ingredients[ingredient];
+                itemDiv.classList.toggle('state-include', currentState === 'include');
+                itemDiv.classList.toggle('state-exclude', currentState === 'exclude');
+                itemDiv.querySelector('.toggle7').dataset.state = currentState;
+            });
+            document.querySelectorAll('.predefined-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', filters.activePredefinedFilters.includes(btn.dataset.filterName));
+            });
+        }
+        
+        function getFilteredPizzas() {
+             return pizzas.filter(pizza => {
+                if (!pizza.prices[filters.selectedSize]) return false;
+                const finalIngredientStates = { ...filters.ingredients };
+                filters.activePredefinedFilters.forEach(filterName => {
+                    const predefinedFilter = predefinedFilters[filterName];
+                    if (predefinedFilter) {
+                        Object.entries(predefinedFilter.setFilters).forEach(([ing, state]) => {
+                            if (state === 'exclude') finalIngredientStates[ing] = 'exclude';
+                            else if (state === 'include' && finalIngredientStates[ing] !== 'exclude') finalIngredientStates[ing] = 'predefined_include';
+                        });
+                    }
+                });
+                for (const ing of pizza.ingredients) { if (finalIngredientStates[ing] === 'exclude') return false; }
+                for (const ing in finalIngredientStates) { if (finalIngredientStates[ing] === 'include' && !pizza.ingredients.includes(ing)) return false; }
+                for (const filterName of filters.activePredefinedFilters) {
+                    const predefinedFilter = predefinedFilters[filterName];
+                    if (predefinedFilter?.matchAnyIncluded) {
+                        const hasRelevantIngredient = predefinedFilter.controlledIngredients.some(ing => predefinedFilter.setFilters[ing] === 'include' && finalIngredientStates[ing] !== 'exclude');
+                        const isSatisfied = predefinedFilter.controlledIngredients.some(ing => pizza.ingredients.includes(ing) && predefinedFilter.setFilters[ing] === 'include');
+                        if (hasRelevantIngredient && !isSatisfied) return false;
+                    }
+                }
+                return true;
+            });
+        }
+
+        function renderPizzas() {
+            randomPizzaDisplay.classList.add('hidden');
+            halfHalfPizzaDisplay.classList.add('hidden');
+            aiPizzaDisplay.classList.add('hidden');
+            let pizzasAfterFiltering = getFilteredPizzas();
+            
+            let minPrice = Math.min(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), Infinity);
+            let maxPrice = Math.max(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), 0);
+            minPrice = isFinite(minPrice) ? minPrice : 0;
+            priceRange.min = minPrice; priceRange.max = maxPrice;
+            if(pizzasAfterFiltering.length > 0) {
+                 if (filters.maxPrice < minPrice || filters.maxPrice > maxPrice) filters.maxPrice = maxPrice;
+                 priceRange.value = filters.maxPrice; priceRange.disabled = false;
+            } else {
+                 priceRange.value = 0; priceRange.disabled = true;
+            }
+            priceValue.textContent = priceRange.disabled ? 'N/A' : filters.maxPrice;
+            pizzasAfterFiltering = pizzasAfterFiltering.filter(p => p.prices[filters.selectedSize] <= filters.maxPrice);
+            pizzaListDiv.innerHTML = '';
+            if (pizzasAfterFiltering.length === 0) {
+                pizzaListDiv.innerHTML = '<p class="text-center text-lg col-span-full mt-4">Niestety, żadna pizza nie spełnia wszystkich wybranych kryteria. Spróbuj zmienić filtry! 😔</p>';
+                return;
+            }
+            pizzasAfterFiltering.forEach(pizza => {
+                const pizzaCard = document.createElement('div');
+                pizzaCard.className = 'pizza-card';
+                pizzaCard.dataset.spice = pizza.spice;
+                pizzaCard.innerHTML = `
+                    <div class="pizza-card-inner">
+                        <div class="pizza-card-front">
+                             <h3>${pizza.name} ${getPizzaEmoji(pizza.name)}</h3>
+                             <p>${pizza.description}</p>
+                             <button class="add-to-cart-btn" data-pizza-name="${pizza.name}" title="Dodaj do historii">❤️</button>
+                        </div>
+                        <div class="pizza-card-back">
+                             <div class="info-panel">
+                                <h4>${pizza.name}</h4>
+                                <p class="ingredients-list">
+                                    <strong>Składniki:</strong> ${pizza.ingredients.map(ing => `${ingredientEmojis[ing] || ''} ${ing}`).join(', ')}
+                                </p>
+                            </div>
+                             <div class="info-panel price-info">
+                                <div class="font-semibold text-sm w-full">
+                                    ${pizza.prices["25cm"] ? `<p>25cm: <strong>${pizza.prices["25cm"]}zł</strong></p>` : ''}
+                                    ${pizza.prices["35cm"] ? `<p>35cm: <strong>${pizza.prices["35cm"]}zł</strong></p>` : ''}
+                                    ${pizza.prices["45cm"] ? `<p>45cm: <strong>${pizza.prices["45cm"]}zł</strong></p>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                pizzaListDiv.appendChild(pizzaCard);
+            });
+        }
+
+        function getPizzaEmoji(pizzaName) { if (pizzaName.includes("Margherita")) return "🇮🇹"; if (pizzaName.includes("Hawajska")) return "🍍"; if (pizzaName.includes("Mexicana")) return "🌮"; if (pizzaName.includes("Kebab")) return "🥙"; if (pizzaName.includes("Serowa")) return "🧀"; if (["Morska", "Marinero", "Gamberetto", "Tuna", "Big Tiger"].some(p => pizzaName.includes(p))) return "🌊"; if (["Diabolo", "Hot kebab", "Inferno"].some(p => pizzaName.includes(p))) return "🌶️🔥"; if (["Chłopska", "Wiejska", "Góralska"].some(p => pizzaName.includes(p))) return "🏡"; if (["Vega", "Brocoli", "Soprano"].some(p => pizzaName.includes(p))) return "🥦"; return "🍕"; }
+        
+        // --- HISTORY LOGIC ---
+        function addToHistory(pizzaName) {
+            const pizza = pizzas.find(p => p.name === pizzaName);
+            if (!pizza) return;
+            const size = filters.selectedSize;
+            const price = pizza.prices[size];
+            const historyItem = { id: Date.now(), name: pizza.name, size: size, price: price, emoji: getPizzaEmoji(pizza.name), timestamp: new Date() };
+            history.unshift(historyItem);
+            saveHistory();
+            renderHistory();
+            showNotification("Dodano do historii!");
+        }
+
+        function removeFromHistory(itemId) {
+            history = history.filter(item => item.id !== itemId);
+            saveHistory();
+            renderHistory();
+        }
+        
+        function clearHistory() {
+            history = [];
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyItemsContainer.innerHTML = '';
+            if (history.length === 0) {
+                historyItemsContainer.innerHTML = '<p class="text-center">Historia jest pusta.</p>';
+            } else {
+                history.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'history-item';
+                    const date = new Date(item.timestamp);
+                    const formattedDate = `${date.toLocaleDateString('pl-PL')} ${date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute:'2-digit'})}`;
+                    
+                    itemDiv.innerHTML = `
+                        <div class="history-item-details">
+                            <span>${item.emoji}</span>
+                            <div>
+                                <div>${item.name} (${item.size})</div>
+                                <div class="text-xs opacity-75">${formattedDate}</div>
+                            </div>
+                        </div>
+                        <button class="remove-from-history-btn" data-item-id="${item.id}">&times;</button>
+                    `;
+                    historyItemsContainer.appendChild(itemDiv);
+                });
+            }
+            historyItemCountEl.textContent = history.length;
+        }
+
+        function saveHistory() {
+            localStorage.setItem('pizza_app_history', JSON.stringify(history));
+        }
+
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('pizza_app_history');
+            if(savedHistory) {
+                history = JSON.parse(savedHistory);
+            }
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+
+        // Event Listeners
+        pizzaSizeRadios.forEach(radio => radio.addEventListener('change', e => { filters.selectedSize = e.target.value; renderPizzas(); }));
+        priceRange.addEventListener('input', e => { filters.maxPrice = parseInt(e.target.value); renderPizzas(); });
+        ingredientFiltersDiv.addEventListener('click', e => {
+            const itemDiv = e.target.closest('.ingredient-item:not(.disabled)'); 
+            if (!itemDiv) return;
+            const ingredient = itemDiv.dataset.ingredient;
+            const states = ['none', 'include', 'exclude'];
+            const currentStateIndex = states.indexOf(filters.ingredients[ingredient]);
+            filters.ingredients[ingredient] = states[(currentStateIndex + 1) % states.length];
+            updateIngredientTogglesUI();
+            renderPizzas();
+        });
+        predefinedFiltersContainer.addEventListener('click', e => {
+            const button = e.target.closest('.predefined-filter-btn');
+            if (!button) return;
+            const filterName = button.dataset.filterName;
+            if (filterName === "Reset") {
+                Object.keys(filters.ingredients).forEach(key => filters.ingredients[key] = 'none');
+                filters.activePredefinedFilters = [];
+                pizzaSizeRadios[0].checked = true; filters.selectedSize = '25cm';
+                priceRange.value = 70; filters.maxPrice = 70;
+            } else {
+                const index = filters.activePredefinedFilters.indexOf(filterName);
+                if (index > -1) filters.activePredefinedFilters.splice(index, 1);
+                else filters.activePredefinedFilters.push(filterName);
+            }
+            updateIngredientTogglesUI();
+            renderPizzas();
+        });
+        
+        // Event listener for adding to history
+        pizzaListDiv.addEventListener('click', e => {
+            const btn = e.target.closest('.add-to-cart-btn');
+            if (btn) {
+                e.stopPropagation(); // Prevents card from flipping
+                const pizzaName = btn.dataset.pizzaName;
+                addToHistory(pizzaName);
+            }
+        });
+
+        const setupButtonListener = (btn, display, generatorFn) => {
+            btn.addEventListener('click', () => {
+                display.classList.add('hidden');
+                const result = generatorFn();
+                if (result) {
+                    display.innerHTML = result;
+                    display.classList.remove('hidden');
+                }
+                btn.classList.remove('bouncing');
+                void btn.offsetWidth;
+                btn.classList.add('bouncing');
+                btn.addEventListener('animationend', () => btn.classList.remove('bouncing'), { once: true });
+            });
+        };
+
+        setupButtonListener(randomPizzaBtn, randomPizzaDisplay, () => {
+             const filteredPizzas = getFilteredPizzas().filter(p => p.prices[filters.selectedSize] <= filters.maxPrice);
+             if (filteredPizzas.length < 1) return '<p class="text-lg mt-4">Brak pizz do wylosowania z obecnych filtrów. Zmień filtry! 😔</p>';
+             const pizza = filteredPizzas[Math.floor(Math.random() * filteredPizzas.length)];
+             return `<h3 class="text-2xl font-bold mb-2" style="color: var(--accent-color);">Twoja wylosowana pizza to: ${pizza.name} ${getPizzaEmoji(pizza.name)}!</h3>
+                <p class="mb-3 text-sm">Składniki: ${pizza.ingredients.map(ing => `${ingredientEmojis[ing] || ''} ${ing}`).join(', ')}</p>
+                <div class="font-semibold text-sm"><p>${filters.selectedSize}: ${pizza.prices[filters.selectedSize]}zł</p></div>
+                <p class="mt-4">Smacznego! 😋</p>`;
+        });
+        
+        setupButtonListener(halfHalfPizzaBtn, halfHalfPizzaDisplay, () => {
+            const filteredPizzas = getFilteredPizzas().filter(p => p.prices[filters.selectedSize] <= filters.maxPrice);
+            if (filteredPizzas.length < 2) return '<p class="text-lg mt-4">Potrzebujesz co najmniej dwóch pizz w filtrach, aby stworzyć pizzę pół na pół! 😟</p>';
+            let i1 = Math.floor(Math.random() * filteredPizzas.length);
+            let i2;
+            do { i2 = Math.floor(Math.random() * filteredPizzas.length); } while (i1 === i2);
+            const p1 = filteredPizzas[i1]; const p2 = filteredPizzas[i2];
+            const price1 = p1.prices[filters.selectedSize];
+            const price2 = p2.prices[filters.selectedSize];
+            let combinedPrice = null;
+            if (price1 !== undefined && price2 !== undefined) {
+                combinedPrice = ((price1 + price2) / 2).toFixed(2);
+            }
+            return `<h3 class="text-2xl font-bold mb-2" style="color: var(--accent-color);">Twoja propozycja pizzy pół na pół:</h3>
+                <div class="flex flex-col md:flex-row justify-center items-start gap-4 mb-3">
+                    <div class="w-full md:w-1/2 text-left">
+                        <h4 class="font-semibold text-lg">${p1.name} ${getPizzaEmoji(p1.name)}</h4>
+                        <p class="text-sm">${p1.ingredients.map(ing => `${ingredientEmojis[ing] || ''} ${ing}`).join(', ')}</p>
+                    </div>
+                    <div class="w-full md:w-1/2 text-left">
+                        <h4 class="font-semibold text-lg">${p2.name} ${getPizzaEmoji(p2.name)}</h4>
+                        <p class="text-sm">${p2.ingredients.map(ing => `${ingredientEmojis[ing] || ''} ${ing}`).join(', ')}</p>
+                    </div>
+                </div>
+                <div class="font-semibold text-md mt-4">
+                    <p class="font-bold">Szacowana cena dla rozmiaru ${filters.selectedSize}:</p>
+                    ${combinedPrice !== null ? `<p>${combinedPrice}zł</p>` : '<p>Brak dostępnych cen dla tego rozmiaru.</p>'}
+                </div>
+                <p class="mt-4">Smacznego! 😋</p>`;
+        });
+
+        // --- Gemini AI Pizza Suggestion ---
+        aiPizzaBtn.addEventListener('click', async () => {
+            const display = aiPizzaDisplay;
+            display.classList.remove('hidden');
+            display.innerHTML = `<div class="font-bold">✨ Szef kuchni AI myśli...</div>`;
+            
+            const availableIngredients = Object.keys(ingredientEmojis).join(', ');
+            const prompt = `Jesteś kreatywnym włoskim szefem kuchni. Wymyśl unikalną, pyszną pizzę dnia. Podaj jej nazwę, listę składników oraz krótki, apetyczny opis. Użyj tylko składników z tej listy: ${availableIngredients}.`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "name": { "type": "STRING" },
+                            "description": { "type": "STRING" },
+                            "ingredients": { "type": "ARRAY", "items": { "type": "STRING" } }
+                        },
+                        required: ["name", "description", "ingredients"]
+                    }
+                }
+            };
+            
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Błąd API: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                const candidate = result.candidates?.[0];
+                const content = candidate?.content?.parts?.[0]?.text;
+
+                if (content) {
+                    const pizzaData = JSON.parse(content);
+                    const ingredientsHtml = pizzaData.ingredients.map(ing => `${ingredientEmojis[ing] || '🍕'} ${ing}`).join(', ');
+                    display.innerHTML = `
+                        <h3 class="text-2xl font-bold mb-2" style="color: var(--accent-color);">${pizzaData.name}</h3>
+                        <p class="mb-3 text-sm italic">"${pizzaData.description}"</p>
+                        <p class="mb-3 text-sm">
+                            <strong>Sugerowane składniki:</strong> ${ingredientsHtml}
+                        </p>
+                    `;
+                } else {
+                     display.innerHTML = `<p class="text-red-500">Szef kuchni AI ma dzisiaj wolne. Spróbuj ponownie później.</p>`;
+                }
+            } catch (error) {
+                console.error("Błąd podczas wywołania Gemini API:", error);
+                display.innerHTML = `<p class="text-red-500">Wystąpił błąd podczas komunikacji z szefem kuchni AI.</p>`;
+            }
+        });
+
+
+        // --- Spotlight and Delayed Flip Logic ---
+        document.addEventListener('mousemove', (e) => {
+            document.body.style.setProperty('--mouse-x', `${e.clientX}px`);
+            document.body.style.setProperty('--mouse-y', `${e.clientY}px`);
+        });
+
+        const cardTimers = new Map();
+        pizzaListDiv.addEventListener('mouseover', (event) => {
+            const card = event.target.closest('.pizza-card');
+            if (!card) return;
+
+            if (event.target.closest('.add-to-cart-btn')) {
+                if (cardTimers.has(card)) {
+                    clearTimeout(cardTimers.get(card));
+                    cardTimers.delete(card);
+                }
+                return;
+            }
+
+            if (!cardTimers.has(card)) {
+                const timer = setTimeout(() => {
+                    card.classList.add('flipped');
+                }, 500);
+                cardTimers.set(card, timer);
+            }
+        });
+
+        pizzaListDiv.addEventListener('mouseout', (event) => {
+            const card = event.target.closest('.pizza-card');
+            if (card) {
+                if (cardTimers.has(card)) {
+                    clearTimeout(cardTimers.get(card));
+                    cardTimers.delete(card);
+                }
+                card.classList.remove('flipped');
+            }
+        });
+        
+        // History UI listeners
+        historyToggleButton.addEventListener('click', () => historyContentPanel.classList.toggle('is-expanded'));
+        closeHistoryPanelBtn.addEventListener('click', () => historyContentPanel.classList.remove('is-expanded'));
+        clearHistoryBtn.addEventListener('click', clearHistory);
+        historyItemsContainer.addEventListener('click', e => {
+            if(e.target.classList.contains('remove-from-history-btn')) {
+                const itemId = parseInt(e.target.dataset.itemId);
+                removeFromHistory(itemId);
+            }
+        });
+
+
+        window.addEventListener('scroll', () => { scrollToTopBtn.style.display = (window.scrollY > 200) ? "block" : "none"; });
+        scrollToTopBtn.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        
+        // Initial render
+        themeToggleBtn.addEventListener('click', toggleSystemOrSavedTheme);
+        loadHistory();
+        populateIngredientFilters();
+        updateIngredientTogglesUI();
+        renderPizzas();
+        renderHistory();
+    </script>
+</body>
+</html>
+�
