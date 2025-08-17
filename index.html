@@ -148,17 +148,60 @@
             margin: 0 auto;
             min-height: 280px;
             perspective: 1500px;
-            cursor: pointer;
-            transition: transform 0.3s ease;
             position: relative;
             z-index: 10;
             /* Performance optimizations */
             will-change: transform;
             transform: translateZ(0); /* Hardware acceleration */
+            transition: transform 0.3s ease;
         }
 
-        .pizza-card:hover {
+        /* Hover zone - only center 70% of card triggers scaling */
+        .pizza-card-hover-zone {
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 70%;
+            height: 70%;
+            z-index: 15;
+            cursor: pointer;
+        }
+
+        .pizza-card-hover-zone:hover ~ .pizza-card-inner,
+        .pizza-card-hover-zone:hover {
             transform: scale(1.05) translateZ(0);
+        }
+
+        /* Keep flip functionality for entire card */
+        .pizza-card {
+            cursor: default;
+        }
+        
+        .pizza-card-inner {
+            cursor: pointer;
+        }
+
+        /* Pizza selection for comparison */
+        .pizza-card.selected-for-comparison {
+            box-shadow: 0 0 0 3px var(--accent-color);
+            transform: scale(1.02);
+        }
+
+        .pizza-card.selected-for-comparison::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            z-index: 20;
         }
 
         .pizza-card-inner {
@@ -231,7 +274,7 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
 
-        .add-to-cart-btn {
+        .add-to-favorites-btn {
             position: absolute;
             top: 15px;
             right: 15px;
@@ -245,13 +288,15 @@
             font-size: 20px;
             transition: transform 0.2s ease, background-color 0.2s;
             border: none;
+            z-index: 20;
         }
-        .add-to-cart-btn:hover {
+        .add-to-favorites-btn:hover {
             transform: scale(1.1);
-            background: rgba(0,0,0,0.4);
+            background: rgba(255,215,0,0.6);
         }
-        .add-to-cart-btn.added {
-             color: var(--accent-color);
+        .add-to-favorites-btn.favorited {
+             color: #FFD700;
+             background: rgba(255,215,0,0.3);
         }
 
 
@@ -679,11 +724,11 @@
                         </div>
                 </div>
                 
-                 <div class="mt-8 text-center">
-                    <button id="aiPizzaBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" style="background-color: var(--accent-color); color: white;">
-                        ✨ Zaproponuj Pizzę Dnia od AI ✨
+                <div class="mt-8 text-center">
+                    <button id="comparePizzasBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" style="background-color: var(--accent-color); color: white;">
+                        ⚖️ Porównaj Wybrane Pizze ⚖️
                     </button>
-                    <div id="aiPizzaDisplay" class="suggestion-card mt-6 hidden">
+                    <div id="comparisonDisplay" class="suggestion-card mt-6 hidden">
                     </div>
                 </div>
 
@@ -698,16 +743,16 @@
         </div>
     </div>
     
-    <!-- History Container -->
+    <!-- Favorites Container -->
     <div id="history">
-        <button id="historyToggleButton">🕒<span id="historyItemCount">0</span></button>
+        <button id="historyToggleButton">⭐<span id="historyItemCount">0</span></button>
         <div id="historyContentPanel">
             <button id="closeHistoryPanelBtn">&times;</button>
-            <h2 class="text-xl font-bold text-center mb-4">Historia</h2>
+            <h2 class="text-xl font-bold text-center mb-4">Ulubione</h2>
             <div id="historyItemsContainer">
-                <!-- History items will be injected here -->
+                <!-- Favorite items will be injected here -->
             </div>
-            <button id="clearHistoryBtn" class="w-full mt-4">Wyczyść historię</button>
+            <button id="clearHistoryBtn" class="w-full mt-4">Wyczyść ulubione</button>
         </div>
     </div>
 
@@ -900,10 +945,10 @@
                 listDiv: () => DOMCache.get('pizzaList'),
                 randomBtn: () => DOMCache.get('randomPizzaBtn'),
                 halfHalfBtn: () => DOMCache.get('halfHalfPizzaBtn'),
-                aiBtn: () => DOMCache.get('aiPizzaBtn'),
+                compareBtn: () => DOMCache.get('comparePizzasBtn'),
                 randomDisplay: () => DOMCache.get('randomPizzaDisplay'),
                 halfHalfDisplay: () => DOMCache.get('halfHalfPizzaDisplay'),
-                aiDisplay: () => DOMCache.get('aiPizzaDisplay')
+                comparisonDisplay: () => DOMCache.get('comparisonDisplay')
             },
             history: {
                 toggleButton: () => DOMCache.get('historyToggleButton'),
@@ -921,6 +966,173 @@
 
         let filters = { selectedSize: '25cm', maxPrice: 70, ingredients: {}, activePredefinedFilters: [], activeTheme: null };
         let history = [];
+        let favorites = new Set();
+        let selectedPizzasForComparison = [];
+
+        // Favorites Manager
+        const FavoritesManager = {
+            addToFavorites(pizzaName) {
+                favorites.add(pizzaName);
+                this.saveFavorites();
+                this.updateFavoriteButtons();
+                showNotification(`${pizzaName} dodana do ulubionych!`);
+            },
+            
+            removeFromFavorites(pizzaName) {
+                favorites.delete(pizzaName);
+                this.saveFavorites();
+                this.updateFavoriteButtons();
+                showNotification(`${pizzaName} usunięta z ulubionych!`);
+            },
+            
+            isFavorite(pizzaName) {
+                return favorites.has(pizzaName);
+            },
+            
+            toggleFavorite(pizzaName) {
+                if (this.isFavorite(pizzaName)) {
+                    this.removeFromFavorites(pizzaName);
+                } else {
+                    this.addToFavorites(pizzaName);
+                }
+            },
+            
+            updateFavoriteButtons() {
+                document.querySelectorAll('.add-to-favorites-btn').forEach(btn => {
+                    const pizzaName = btn.dataset.pizzaName;
+                    btn.classList.toggle('favorited', this.isFavorite(pizzaName));
+                    btn.textContent = this.isFavorite(pizzaName) ? '⭐' : '☆';
+                });
+            },
+            
+            saveFavorites() {
+                localStorage.setItem('pizza_app_favorites', JSON.stringify([...favorites]));
+            },
+            
+            loadFavorites() {
+                const saved = localStorage.getItem('pizza_app_favorites');
+                if (saved) {
+                    favorites = new Set(JSON.parse(saved));
+                }
+            }
+        };
+
+        // Pizza Comparison Manager
+        const ComparisonManager = {
+            selectPizzaForComparison(pizzaName) {
+                const pizza = pizzas.find(p => p.name === pizzaName);
+                if (!pizza) return;
+                
+                if (selectedPizzasForComparison.find(p => p.name === pizzaName)) {
+                    // Remove if already selected
+                    selectedPizzasForComparison = selectedPizzasForComparison.filter(p => p.name !== pizzaName);
+                    showNotification(`${pizzaName} usunięta z porównania`);
+                } else if (selectedPizzasForComparison.length < 2) {
+                    // Add if less than 2 selected
+                    selectedPizzasForComparison.push(pizza);
+                    showNotification(`${pizzaName} dodana do porównania`);
+                } else {
+                    // Replace oldest if 2 already selected
+                    selectedPizzasForComparison.shift();
+                    selectedPizzasForComparison.push(pizza);
+                    showNotification(`${pizzaName} zastąpiła najstarszą pizzę w porównaniu`);
+                }
+                
+                this.updateComparisonButton();
+                this.updateSelectionIndicators();
+            },
+            
+            updateComparisonButton() {
+                const btn = Elements.pizza.compareBtn();
+                const count = selectedPizzasForComparison.length;
+                
+                if (count === 0) {
+                    btn.textContent = '⚖️ Wybierz pizze do porównania ⚖️';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                } else if (count === 1) {
+                    btn.textContent = `⚖️ Wybrano: ${selectedPizzasForComparison[0].name} (wybierz drugą) ⚖️`;
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                } else {
+                    btn.textContent = `⚖️ Porównaj: ${selectedPizzasForComparison[0].name} vs ${selectedPizzasForComparison[1].name} ⚖️`;
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }
+            },
+            
+            updateSelectionIndicators() {
+                // Update visual indicators on pizza cards
+                document.querySelectorAll('.pizza-card').forEach(card => {
+                    const pizzaName = card.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
+                    const isSelected = selectedPizzasForComparison.find(p => p.name === pizzaName);
+                    card.classList.toggle('selected-for-comparison', !!isSelected);
+                });
+            },
+            
+            showComparison() {
+                if (selectedPizzasForComparison.length !== 2) return;
+                
+                const [pizza1, pizza2] = selectedPizzasForComparison;
+                const size = filters.selectedSize;
+                
+                const comparisonHtml = `
+                    <h3 class="text-2xl font-bold mb-4" style="color: var(--accent-color);">
+                        Porównanie Pizz
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div class="text-center">
+                            <h4 class="text-xl font-semibold mb-2">${pizza1.name} ${getPizzaEmoji(pizza1.name)}</h4>
+                            <p class="text-sm mb-2">${pizza1.description}</p>
+                            <div class="bg-blue-100 p-3 rounded">
+                                <p class="font-bold">Ceny:</p>
+                                ${pizza1.prices["25cm"] ? `<p>25cm: ${pizza1.prices["25cm"]}zł</p>` : ''}
+                                ${pizza1.prices["35cm"] ? `<p>35cm: ${pizza1.prices["35cm"]}zł</p>` : ''}
+                                ${pizza1.prices["45cm"] ? `<p>45cm: ${pizza1.prices["45cm"]}zł</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <h4 class="text-xl font-semibold mb-2">${pizza2.name} ${getPizzaEmoji(pizza2.name)}</h4>
+                            <p class="text-sm mb-2">${pizza2.description}</p>
+                            <div class="bg-green-100 p-3 rounded">
+                                <p class="font-bold">Ceny:</p>
+                                ${pizza2.prices["25cm"] ? `<p>25cm: ${pizza2.prices["25cm"]}zł</p>` : ''}
+                                ${pizza2.prices["35cm"] ? `<p>35cm: ${pizza2.prices["35cm"]}zł</p>` : ''}
+                                ${pizza2.prices["45cm"] ? `<p>45cm: ${pizza2.prices["45cm"]}zł</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center bg-yellow-100 p-4 rounded">
+                        <p class="font-bold text-lg">Dla rozmiaru ${size}:</p>
+                        <p class="text-xl">
+                            ${pizza1.name}: <strong>${pizza1.prices[size]}zł</strong> vs 
+                            ${pizza2.name}: <strong>${pizza2.prices[size]}zł</strong>
+                        </p>
+                        ${pizza1.prices[size] < pizza2.prices[size] ? 
+                            `<p class="text-green-600 font-bold mt-2">💰 ${pizza1.name} jest tańsza o ${pizza2.prices[size] - pizza1.prices[size]}zł!</p>` :
+                            pizza2.prices[size] < pizza1.prices[size] ?
+                            `<p class="text-green-600 font-bold mt-2">💰 ${pizza2.name} jest tańsza o ${pizza1.prices[size] - pizza2.prices[size]}zł!</p>` :
+                            `<p class="text-blue-600 font-bold mt-2">🟰 Obie pizze kosztują tyle samo!</p>`
+                        }
+                    </div>
+                    <div class="mt-4 text-center">
+                        <button onclick="ComparisonManager.clearSelection()" class="bg-red-500 text-white px-4 py-2 rounded">
+                            Wyczyść wybór
+                        </button>
+                    </div>
+                `;
+                
+                Elements.pizza.comparisonDisplay().innerHTML = comparisonHtml;
+                Elements.pizza.comparisonDisplay().classList.remove('hidden');
+            },
+            
+            clearSelection() {
+                selectedPizzasForComparison = [];
+                this.updateComparisonButton();
+                this.updateSelectionIndicators();
+                Elements.pizza.comparisonDisplay().classList.add('hidden');
+            }
+        };
         
         function applyTheme(themeName) {
             document.body.classList.toggle('dark', themeName === 'dark');
@@ -985,11 +1197,12 @@
                 pizzaCard.className = 'pizza-card';
                 pizzaCard.dataset.spice = pizza.spice;
                 pizzaCard.innerHTML = `
+                    <div class="pizza-card-hover-zone"></div>
                     <div class="pizza-card-inner">
                         <div class="pizza-card-front">
                              <h3>${pizza.name} ${getPizzaEmoji(pizza.name)}</h3>
                              <p>${pizza.description}</p>
-                             <button class="add-to-cart-btn" data-pizza-name="${pizza.name}" title="Dodaj do historii">❤️</button>
+                             <button class="add-to-favorites-btn" data-pizza-name="${pizza.name}" title="Dodaj do ulubionych">⭐</button>
                         </div>
                         <div class="pizza-card-back">
                              <div class="info-panel">
@@ -1094,7 +1307,7 @@
             // Hide suggestion displays
             Elements.pizza.randomDisplay().classList.add('hidden');
             Elements.pizza.halfHalfDisplay().classList.add('hidden');
-            Elements.pizza.aiDisplay().classList.add('hidden');
+            Elements.pizza.comparisonDisplay().classList.add('hidden');
             
             let pizzasAfterFiltering = getFilteredPizzas();
             
@@ -1266,13 +1479,24 @@
             debouncedRenderPizzas();
         });
         
-        // Event listener for adding to history - optimized delegation
+        // Event listener for favorites and comparison - optimized delegation
         EventManager.addHandler(Elements.pizza.listDiv(), 'click', e => {
-            const btn = e.target.closest('.add-to-cart-btn');
-            if (btn) {
+            const favBtn = e.target.closest('.add-to-favorites-btn');
+            if (favBtn) {
                 e.stopPropagation(); // Prevents card from flipping
-                const pizzaName = btn.dataset.pizzaName;
-                addToHistory(pizzaName);
+                const pizzaName = favBtn.dataset.pizzaName;
+                FavoritesManager.toggleFavorite(pizzaName);
+                addToHistory(pizzaName); // Keep history for now
+                return;
+            }
+            
+            // Pizza card click for comparison selection
+            const pizzaCard = e.target.closest('.pizza-card');
+            if (pizzaCard && !e.target.closest('.add-to-favorites-btn')) {
+                const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
+                if (pizzaName) {
+                    ComparisonManager.selectPizzaForComparison(pizzaName);
+                }
             }
         });
 
@@ -1332,110 +1556,9 @@
                 <p class="mt-4">Smacznego! 😋</p>`;
         });
 
-        // Lazy loading manager for non-critical features
-        const LazyLoader = {
-            loadedFeatures: new Set(),
-            
-            async loadAIFeature() {
-                if (this.loadedFeatures.has('ai')) return;
-                
-                // Simulate loading AI feature dependencies
-                await new Promise(resolve => setTimeout(resolve, 100));
-                this.loadedFeatures.add('ai');
-            },
-            
-            async loadHistoryFeature() {
-                if (this.loadedFeatures.has('history')) return;
-                
-                // Load history-related functionality
-                await new Promise(resolve => setTimeout(resolve, 50));
-                this.loadedFeatures.add('history');
-            }
-        };
-        
-        // Rate limiter for API calls
-        const RateLimiter = {
-            lastCall: 0,
-            minInterval: 2000, // 2 seconds between calls
-            
-            canMakeCall() {
-                const now = Date.now();
-                if (now - this.lastCall < this.minInterval) {
-                    return false;
-                }
-                this.lastCall = now;
-                return true;
-            }
-        };
-        
-        // --- Optimized Gemini AI Pizza Suggestion ---
-        EventManager.addHandler(Elements.pizza.aiBtn(), 'click', async () => {
-            if (!RateLimiter.canMakeCall()) {
-                Elements.ui.notification().textContent = 'Poczekaj chwilę przed kolejnym zapytaniem...';
-                Elements.ui.notification().classList.add('show');
-                setTimeout(() => Elements.ui.notification().classList.remove('show'), 2000);
-                return;
-            }
-            
-            await LazyLoader.loadAIFeature();
-            
-            const display = Elements.pizza.aiDisplay();
-            display.classList.remove('hidden');
-            display.innerHTML = `<div class="font-bold">✨ Szef kuchni AI myśli...</div>`;
-            
-            const availableIngredients = Object.keys(ingredientEmojis).join(', ');
-            const prompt = `Jesteś kreatywnym włoskim szefem kuchni. Wymyśl unikalną, pyszną pizzę dnia. Podaj jej nazwę, listę składników oraz krótki, apetyczny opis. Użyj tylko składników z tej listy: ${availableIngredients}.`;
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "name": { "type": "STRING" },
-                            "description": { "type": "STRING" },
-                            "ingredients": { "type": "ARRAY", "items": { "type": "STRING" } }
-                        },
-                        required: ["name", "description", "ingredients"]
-                    }
-                }
-            };
-            
-            try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Błąd API: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                const candidate = result.candidates?.[0];
-                const content = candidate?.content?.parts?.[0]?.text;
-
-                if (content) {
-                    const pizzaData = JSON.parse(content);
-                    const ingredientsHtml = pizzaData.ingredients.map(ing => `${ingredientEmojis[ing] || '🍕'} ${ing}`).join(', ');
-                    display.innerHTML = `
-                        <h3 class="text-2xl font-bold mb-2" style="color: var(--accent-color);">${pizzaData.name}</h3>
-                        <p class="mb-3 text-sm italic">"${pizzaData.description}"</p>
-                        <p class="mb-3 text-sm">
-                            <strong>Sugerowane składniki:</strong> ${ingredientsHtml}
-                        </p>
-                    `;
-                } else {
-                     display.innerHTML = `<p class="text-red-500">Szef kuchni AI ma dzisiaj wolne. Spróbuj ponownie później.</p>`;
-                }
-            } catch (error) {
-                console.error("Błąd podczas wywołania Gemini API:", error);
-                display.innerHTML = `<p class="text-red-500">Wystąpił błąd podczas komunikacji z szefem kuchni AI.</p>`;
-            }
+        // Pizza comparison button handler
+        EventManager.addHandler(Elements.pizza.compareBtn(), 'click', () => {
+            ComparisonManager.showComparison();
         });
 
 
@@ -1542,6 +1665,7 @@
             if (savedTheme) applyTheme(savedTheme);
             
             loadHistory();
+            FavoritesManager.loadFavorites();
             
             // Setup UI
             populateIngredientFilters();
@@ -1549,6 +1673,7 @@
             
             // Initialize managers
             InteractionManager.init();
+            ComparisonManager.updateComparisonButton();
             
             // Setup theme toggle
             EventManager.addHandler(Elements.theme.toggleBtn(), 'click', toggleSystemOrSavedTheme);
@@ -1556,6 +1681,11 @@
             // Initial render
             renderPizzas();
             renderHistory();
+            
+            // Update favorites UI after render
+            setTimeout(() => {
+                FavoritesManager.updateFavoriteButtons();
+            }, 100);
             
             // Setup cleanup on page unload
             window.addEventListener('beforeunload', () => {
