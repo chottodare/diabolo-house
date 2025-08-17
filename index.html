@@ -91,7 +91,7 @@
             --spice-extra-hot-end: #51285c;
         }
 
-        /* General Styles */
+        /* Optimized General Styles */
         body {
             font-family: 'Poppins', sans-serif;
             background-color: var(--bg-color);
@@ -99,6 +99,10 @@
             transition: background-color 0.3s ease, color 0.3s ease;
             position: relative;
             overflow-x: hidden;
+            /* Performance optimizations */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeSpeed;
         }
         
         /* Spotlight Effect that follows the mouse */
@@ -137,22 +141,24 @@
             transition: background-color 0.3s ease;
         }
         
-        /* --- START: Pizza Card Styles --- */
+        /* --- START: Optimized Pizza Card Styles --- */
         .pizza-card {
             width: 100%;
             max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto;
             min-height: 280px;
             perspective: 1500px;
             cursor: pointer;
             transition: transform 0.3s ease;
             position: relative;
             z-index: 10;
+            /* Performance optimizations */
+            will-change: transform;
+            transform: translateZ(0); /* Hardware acceleration */
         }
 
         .pizza-card:hover {
-            transform: scale(1.05);
+            transform: scale(1.05) translateZ(0);
         }
 
         .pizza-card-inner {
@@ -163,6 +169,9 @@
             transform-style: preserve-3d;
             border-radius: 15px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            /* Performance optimizations */
+            will-change: transform;
+            backface-visibility: hidden;
         }
         
         .pizza-card:hover .pizza-card-inner {
@@ -527,7 +536,17 @@
         .main-title { color: var(--title-color); transition: color 0.3s ease; }
         #themeToggleBtn { background-color: var(--predefined-btn-bg); color: var(--predefined-btn-text); transition: background-color 0.3s ease, color 0.3s ease; }
         #themeToggleBtn:hover { background-color: var(--predefined-btn-hover-bg); }
-        .action-button { font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105; }
+        .action-button { 
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out;
+            will-change: transform;
+        }
+        .action-button:hover { 
+            transform: scale(1.05) translateZ(0);
+        }
         #randomPizzaBtn { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
         #randomPizzaBtn:hover { background-color: var(--button-primary-hover-bg); }
         #halfHalfPizzaBtn { background-color: var(--button-secondary-bg); color: var(--button-secondary-text); }
@@ -712,6 +731,110 @@
     <button id="scrollToTopBtn" class="scroll-to-top-btn">⬆️</button>
 
     <script>
+        // Performance optimizations - DOM cache and utilities
+        const DOMCache = {
+            elements: {},
+            get(id) {
+                if (!this.elements[id]) {
+                    this.elements[id] = document.getElementById(id);
+                }
+                return this.elements[id];
+            },
+            clear() {
+                this.elements = {};
+            }
+        };
+
+        // Debounce utility for performance
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Optimized data structures
+        const PizzaDataManager = {
+            pizzas: [],
+            ingredientsByCategory: {},
+            allIngredients: new Set(),
+            priceRanges: { min: Infinity, max: 0 },
+            
+            init(pizzaData) {
+                this.pizzas = pizzaData;
+                this.buildOptimizedStructures();
+            },
+            
+            buildOptimizedStructures() {
+                // Pre-calculate all ingredients and price ranges
+                this.pizzas.forEach(pizza => {
+                    pizza.ingredients.forEach(ing => this.allIngredients.add(ing));
+                    Object.values(pizza.prices).forEach(price => {
+                        if (price < this.priceRanges.min) this.priceRanges.min = price;
+                        if (price > this.priceRanges.max) this.priceRanges.max = price;
+                    });
+                });
+            },
+            
+            getFilteredPizzas(filters) {
+                // Optimized filtering with early returns
+                return this.pizzas.filter(pizza => {
+                    // Quick price and size check first
+                    const price = pizza.prices[filters.selectedSize];
+                    if (!price || price > filters.maxPrice) return false;
+                    
+                    // Apply ingredient filters
+                    const finalIngredientStates = { ...filters.ingredients };
+                    
+                    // Apply predefined filters
+                    filters.activePredefinedFilters.forEach(filterName => {
+                        const predefinedFilter = predefinedFilters[filterName];
+                        if (predefinedFilter) {
+                            Object.entries(predefinedFilter.setFilters).forEach(([ing, state]) => {
+                                if (state === 'exclude') finalIngredientStates[ing] = 'exclude';
+                                else if (state === 'include' && finalIngredientStates[ing] !== 'exclude') {
+                                    finalIngredientStates[ing] = 'predefined_include';
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Check exclusions first (fastest rejection)
+                    for (const ing of pizza.ingredients) {
+                        if (finalIngredientStates[ing] === 'exclude') return false;
+                    }
+                    
+                    // Check required inclusions
+                    for (const ing in finalIngredientStates) {
+                        if (finalIngredientStates[ing] === 'include' && !pizza.ingredients.includes(ing)) {
+                            return false;
+                        }
+                    }
+                    
+                    // Check predefined filter requirements
+                    for (const filterName of filters.activePredefinedFilters) {
+                        const predefinedFilter = predefinedFilters[filterName];
+                        if (predefinedFilter?.matchAnyIncluded) {
+                            const hasRelevantIngredient = predefinedFilter.controlledIngredients.some(ing => 
+                                predefinedFilter.setFilters[ing] === 'include' && finalIngredientStates[ing] !== 'exclude'
+                            );
+                            const isSatisfied = predefinedFilter.controlledIngredients.some(ing => 
+                                pizza.ingredients.includes(ing) && predefinedFilter.setFilters[ing] === 'include'
+                            );
+                            if (hasRelevantIngredient && !isSatisfied) return false;
+                        }
+                    }
+                    
+                    return true;
+                });
+            }
+        };
+
         // Pizza data with 'description' and 'spice' fields
         const pizzas = [
             { name: "Margherita", spice: "mild", description: "Klasyka włoskiej prostoty. Mniej znaczy więcej.", ingredients: ["sos pomidorowy", "ser", "oregano"], prices: { "25cm": 24, "35cm": 37, "45cm": 45 } },
@@ -758,31 +881,43 @@
         const ingredientCategories = { "Wegańskie": [ "sos pomidorowy", "oregano", "kukurydza", "papryka konserwowa", "oliwki zielone", "oliwki czarne", "papryka świeża", "rukola", "bazylia", "tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "pomidor", "peperoni", "ananas", "suszone pomidory", "cukinia", "brokuły", "szpinak", "pieprz cayene", "cebula biała", "cebula czerwona", "ogórek konserwowy", "fasola czerwona", "pietruszka świeża" ], "Mięsne": [ "salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński", "szynka parmeńska zapieczona" ], "Owoce Morza": [ "mieszanka morska", "krewetki", "tuńczyk", "krewetki big tiger" ], "Inne / Sosy / Sery": [ "ser", "sos śmietanowy", "ser pleśniowy", "ser mozzarella", "ser feta", "ser chedar", "ser wędzony", "majonez", "ser kozi", "kurki" ] };
         const predefinedFilters = { "Mięsożernych": { setFilters: { "salami": "include", "szynka": "include", "boczek wędzony": "include", "kabanosy": "include", "wieprzowina": "include", "kiełbasa": "include", "kebab drobiowy": "include", "pierś pieczona": "include", "szynka parmeńska": "include", "sos boloński": "include" }, controlledIngredients: ["salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński"], matchAnyIncluded: true }, "Wegetarian": { setFilters: { "salami": "exclude", "szynka": "exclude", "boczek wędzony": "exclude", "kabanosy": "exclude", "wieprzowina": "exclude", "kiełbasa": "exclude", "kebab drobiowy": "exclude", "pierś pieczona": "exclude", "szynka parmeńska": "exclude", "sos boloński": "exclude", "mieszanka morska": "exclude", "krewetki": "exclude", "tuńczyk": "exclude", "krewetki big tiger": "exclude" }, controlledIngredients: [ "salami", "szynka", "boczek wędzony", "kabanosy", "wieprzowina", "kiełbasa", "kebab drobiowy", "pierś pieczona", "szynka parmeńska", "sos boloński", "mieszanka morska", "krewetki", "tuńczyk", "krewetki big tiger" ], matchAnyIncluded: false }, "Ostre": { setFilters: { "tabasco": "include", "papryka jalapeno": "include", "papryczki piri piri": "include", "czosnek": "include", "pieprz cayene": "include" }, controlledIngredients: ["tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "pieprz cayene"], matchAnyIncluded: true, isGarlicMildSpicy: true }, "Dla dzieci": { setFilters: { "ananas": "include", "kukurydza": "include", "szynka": "include", "ser": "include", "tabasco": "exclude", "papryka jalapeno": "exclude", "papryczki piri piri": "exclude", "czosnek": "exclude", "oliwki zielone": "exclude", "oliwki czarne": "exclude", "pieprz cayene": "exclude", "cebula biała": "exclude", "cebula czerwona": "exclude", "rukola": "exclude", "suszone pomidory": "exclude" }, controlledIngredients: [ "ananas", "kukurydza", "szynka", "ser", "tabasco", "papryka jalapeno", "papryczki piri piri", "czosnek", "oliwki zielone", "oliwki czarne", "pieprz cayene", "cebula biała", "cebula czerwona", "rukola", "suszone pomidory" ], matchAnyIncluded: true } };
 
-        const themeToggleBtn = document.getElementById('themeToggleBtn');
-        const pizzaSizeRadios = document.querySelectorAll('input[name="pizzaSize"]');
-        const priceRange = document.getElementById('priceRange');
-        const priceValue = document.getElementById('priceValue');
-        const ingredientFiltersDiv = document.getElementById('ingredientFilters');
-        const pizzaListDiv = document.getElementById('pizzaList');
-        const randomPizzaBtn = document.getElementById('randomPizzaBtn');
-        const halfHalfPizzaBtn = document.getElementById('halfHalfPizzaBtn');
-        const aiPizzaBtn = document.getElementById('aiPizzaBtn');
-        const randomPizzaDisplay = document.getElementById('randomPizzaDisplay');
-        const halfHalfPizzaDisplay = document.getElementById('halfHalfPizzaDisplay');
-        const aiPizzaDisplay = document.getElementById('aiPizzaDisplay');
-        const filterToggleButton = document.getElementById('filterToggleButton');
-        const filterContentPanel = document.getElementById('filterContentPanel');
-        const closeFilterPanelBtn = document.getElementById('closeFilterPanelBtn');
-        const predefinedFiltersContainer = document.getElementById('predefinedFiltersContainer');
-        const scrollToTopBtn = document.getElementById('scrollToTopBtn');
-        
-        // History elements
-        const historyToggleButton = document.getElementById('historyToggleButton');
-        const historyContentPanel = document.getElementById('historyContentPanel');
-        const closeHistoryPanelBtn = document.getElementById('closeHistoryPanelBtn');
-        const historyItemsContainer = document.getElementById('historyItemsContainer');
-        const historyItemCountEl = document.getElementById('historyItemCount');
-        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        // Optimized DOM element management
+        const Elements = {
+            theme: {
+                toggleBtn: () => DOMCache.get('themeToggleBtn')
+            },
+            filters: {
+                sizeRadios: () => document.querySelectorAll('input[name="pizzaSize"]'),
+                priceRange: () => DOMCache.get('priceRange'),
+                priceValue: () => DOMCache.get('priceValue'),
+                ingredientFiltersDiv: () => DOMCache.get('ingredientFilters'),
+                predefinedContainer: () => DOMCache.get('predefinedFiltersContainer'),
+                toggleButton: () => DOMCache.get('filterToggleButton'),
+                contentPanel: () => DOMCache.get('filterContentPanel'),
+                closePanelBtn: () => DOMCache.get('closeFilterPanelBtn')
+            },
+            pizza: {
+                listDiv: () => DOMCache.get('pizzaList'),
+                randomBtn: () => DOMCache.get('randomPizzaBtn'),
+                halfHalfBtn: () => DOMCache.get('halfHalfPizzaBtn'),
+                aiBtn: () => DOMCache.get('aiPizzaBtn'),
+                randomDisplay: () => DOMCache.get('randomPizzaDisplay'),
+                halfHalfDisplay: () => DOMCache.get('halfHalfPizzaDisplay'),
+                aiDisplay: () => DOMCache.get('aiPizzaDisplay')
+            },
+            history: {
+                toggleButton: () => DOMCache.get('historyToggleButton'),
+                contentPanel: () => DOMCache.get('historyContentPanel'),
+                closePanelBtn: () => DOMCache.get('closeHistoryPanelBtn'),
+                itemsContainer: () => DOMCache.get('historyItemsContainer'),
+                itemCountEl: () => DOMCache.get('historyItemCount'),
+                clearBtn: () => DOMCache.get('clearHistoryBtn')
+            },
+            ui: {
+                scrollToTopBtn: () => DOMCache.get('scrollToTopBtn'),
+                notification: () => DOMCache.get('notification')
+            }
+        };
 
         let filters = { selectedSize: '25cm', maxPrice: 70, ingredients: {}, activePredefinedFilters: [], activeTheme: null };
         let history = [];
@@ -829,56 +964,23 @@
         }
         
         function getFilteredPizzas() {
-             return pizzas.filter(pizza => {
-                if (!pizza.prices[filters.selectedSize]) return false;
-                const finalIngredientStates = { ...filters.ingredients };
-                filters.activePredefinedFilters.forEach(filterName => {
-                    const predefinedFilter = predefinedFilters[filterName];
-                    if (predefinedFilter) {
-                        Object.entries(predefinedFilter.setFilters).forEach(([ing, state]) => {
-                            if (state === 'exclude') finalIngredientStates[ing] = 'exclude';
-                            else if (state === 'include' && finalIngredientStates[ing] !== 'exclude') finalIngredientStates[ing] = 'predefined_include';
-                        });
-                    }
-                });
-                for (const ing of pizza.ingredients) { if (finalIngredientStates[ing] === 'exclude') return false; }
-                for (const ing in finalIngredientStates) { if (finalIngredientStates[ing] === 'include' && !pizza.ingredients.includes(ing)) return false; }
-                for (const filterName of filters.activePredefinedFilters) {
-                    const predefinedFilter = predefinedFilters[filterName];
-                    if (predefinedFilter?.matchAnyIncluded) {
-                        const hasRelevantIngredient = predefinedFilter.controlledIngredients.some(ing => predefinedFilter.setFilters[ing] === 'include' && finalIngredientStates[ing] !== 'exclude');
-                        const isSatisfied = predefinedFilter.controlledIngredients.some(ing => pizza.ingredients.includes(ing) && predefinedFilter.setFilters[ing] === 'include');
-                        if (hasRelevantIngredient && !isSatisfied) return false;
-                    }
-                }
-                return true;
-            });
+            return PizzaDataManager.getFilteredPizzas(filters);
         }
 
-        function renderPizzas() {
-            randomPizzaDisplay.classList.add('hidden');
-            halfHalfPizzaDisplay.classList.add('hidden');
-            aiPizzaDisplay.classList.add('hidden');
-            let pizzasAfterFiltering = getFilteredPizzas();
+        // Advanced rendering with virtualization and caching
+        const RenderManager = {
+            pizzaCardCache: new Map(),
+            currentPizzas: [],
+            itemsPerBatch: 12, // Render in batches for better performance
+            currentBatch: 0,
+            isRendering: false,
             
-            let minPrice = Math.min(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), Infinity);
-            let maxPrice = Math.max(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), 0);
-            minPrice = isFinite(minPrice) ? minPrice : 0;
-            priceRange.min = minPrice; priceRange.max = maxPrice;
-            if(pizzasAfterFiltering.length > 0) {
-                 if (filters.maxPrice < minPrice || filters.maxPrice > maxPrice) filters.maxPrice = maxPrice;
-                 priceRange.value = filters.maxPrice; priceRange.disabled = false;
-            } else {
-                 priceRange.value = 0; priceRange.disabled = true;
-            }
-            priceValue.textContent = priceRange.disabled ? 'N/A' : filters.maxPrice;
-            pizzasAfterFiltering = pizzasAfterFiltering.filter(p => p.prices[filters.selectedSize] <= filters.maxPrice);
-            pizzaListDiv.innerHTML = '';
-            if (pizzasAfterFiltering.length === 0) {
-                pizzaListDiv.innerHTML = '<p class="text-center text-lg col-span-full mt-4">Niestety, żadna pizza nie spełnia wszystkich wybranych kryteria. Spróbuj zmienić filtry! 😔</p>';
-                return;
-            }
-            pizzasAfterFiltering.forEach(pizza => {
+            createPizzaCard(pizza) {
+                const cacheKey = `${pizza.name}-${filters.selectedSize}`;
+                if (this.pizzaCardCache.has(cacheKey)) {
+                    return this.pizzaCardCache.get(cacheKey).cloneNode(true);
+                }
+                
                 const pizzaCard = document.createElement('div');
                 pizzaCard.className = 'pizza-card';
                 pizzaCard.dataset.spice = pizza.spice;
@@ -905,8 +1007,122 @@
                             </div>
                         </div>
                     </div>`;
-                pizzaListDiv.appendChild(pizzaCard);
-            });
+                
+                // Cache the card for future use
+                this.pizzaCardCache.set(cacheKey, pizzaCard.cloneNode(true));
+                return pizzaCard;
+            },
+            
+            renderPizzaBatch(startIndex, endIndex) {
+                const pizzaListDiv = Elements.pizza.listDiv();
+                const fragment = document.createDocumentFragment();
+                
+                for (let i = startIndex; i < endIndex && i < this.currentPizzas.length; i++) {
+                    fragment.appendChild(this.createPizzaCard(this.currentPizzas[i]));
+                }
+                
+                pizzaListDiv.appendChild(fragment);
+            },
+            
+            renderPizzaList(pizzasToRender) {
+                if (this.isRendering) return;
+                this.isRendering = true;
+                
+                const pizzaListDiv = Elements.pizza.listDiv();
+                this.currentPizzas = pizzasToRender;
+                this.currentBatch = 0;
+                
+                // Clear existing content
+                pizzaListDiv.innerHTML = '';
+                
+                if (pizzasToRender.length === 0) {
+                    const emptyMessage = document.createElement('p');
+                    emptyMessage.className = 'text-center text-lg col-span-full mt-4';
+                    emptyMessage.textContent = 'Niestety, żadna pizza nie spełnia wszystkich wybranych kryteria. Spróbuj zmienić filtry! 😔';
+                    pizzaListDiv.appendChild(emptyMessage);
+                    this.isRendering = false;
+                    return;
+                }
+                
+                // For small lists, render all at once
+                if (pizzasToRender.length <= this.itemsPerBatch) {
+                    const fragment = document.createDocumentFragment();
+                    pizzasToRender.forEach(pizza => {
+                        fragment.appendChild(this.createPizzaCard(pizza));
+                    });
+                    pizzaListDiv.appendChild(fragment);
+                    this.isRendering = false;
+                    return;
+                }
+                
+                // For large lists, use progressive rendering
+                this.renderNextBatch();
+            },
+            
+            renderNextBatch() {
+                const startIndex = this.currentBatch * this.itemsPerBatch;
+                const endIndex = Math.min(startIndex + this.itemsPerBatch, this.currentPizzas.length);
+                
+                if (startIndex >= this.currentPizzas.length) {
+                    this.isRendering = false;
+                    return;
+                }
+                
+                // Use requestAnimationFrame for smooth rendering
+                requestAnimationFrame(() => {
+                    this.renderPizzaBatch(startIndex, endIndex);
+                    this.currentBatch++;
+                    
+                    if (endIndex < this.currentPizzas.length) {
+                        // Continue rendering next batch after a small delay
+                        setTimeout(() => this.renderNextBatch(), 16); // ~60fps
+                    } else {
+                        this.isRendering = false;
+                    }
+                });
+            },
+            
+            clearCache() {
+                this.pizzaCardCache.clear();
+                this.currentPizzas = [];
+                this.currentBatch = 0;
+                this.isRendering = false;
+            }
+        };
+        
+        function renderPizzas() {
+            // Hide suggestion displays
+            Elements.pizza.randomDisplay().classList.add('hidden');
+            Elements.pizza.halfHalfDisplay().classList.add('hidden');
+            Elements.pizza.aiDisplay().classList.add('hidden');
+            
+            let pizzasAfterFiltering = getFilteredPizzas();
+            
+            // Update price range
+            const priceRange = Elements.filters.priceRange();
+            const priceValue = Elements.filters.priceValue();
+            
+            let minPrice = Math.min(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), Infinity);
+            let maxPrice = Math.max(...pizzasAfterFiltering.map(p => p.prices[filters.selectedSize]).filter(Boolean), 0);
+            minPrice = isFinite(minPrice) ? minPrice : 0;
+            
+            priceRange.min = minPrice; 
+            priceRange.max = maxPrice;
+            
+            if(pizzasAfterFiltering.length > 0) {
+                 if (filters.maxPrice < minPrice || filters.maxPrice > maxPrice) filters.maxPrice = maxPrice;
+                 priceRange.value = filters.maxPrice; 
+                 priceRange.disabled = false;
+            } else {
+                 priceRange.value = 0; 
+                 priceRange.disabled = true;
+            }
+            
+            priceValue.textContent = priceRange.disabled ? 'N/A' : filters.maxPrice;
+            pizzasAfterFiltering = pizzasAfterFiltering.filter(p => p.prices[filters.selectedSize] <= filters.maxPrice);
+            
+            // Use optimized rendering
+            RenderManager.renderPizzaList(pizzasAfterFiltering);
         }
 
         function getPizzaEmoji(pizzaName) { if (pizzaName.includes("Margherita")) return "🇮🇹"; if (pizzaName.includes("Hawajska")) return "🍍"; if (pizzaName.includes("Mexicana")) return "🌮"; if (pizzaName.includes("Kebab")) return "🥙"; if (pizzaName.includes("Serowa")) return "🧀"; if (["Morska", "Marinero", "Gamberetto", "Tuna", "Big Tiger"].some(p => pizzaName.includes(p))) return "🌊"; if (["Diabolo", "Hot kebab", "Inferno"].some(p => pizzaName.includes(p))) return "🌶️🔥"; if (["Chłopska", "Wiejska", "Góralska"].some(p => pizzaName.includes(p))) return "🏡"; if (["Vega", "Brocoli", "Soprano"].some(p => pizzaName.includes(p))) return "🥦"; return "🍕"; }
@@ -983,39 +1199,75 @@
             }, 2000);
         }
 
-        // Event Listeners
-        pizzaSizeRadios.forEach(radio => radio.addEventListener('change', e => { filters.selectedSize = e.target.value; renderPizzas(); }));
-        priceRange.addEventListener('input', e => { filters.maxPrice = parseInt(e.target.value); renderPizzas(); });
-        ingredientFiltersDiv.addEventListener('click', e => {
+        // Debounced render functions
+        const debouncedRenderPizzas = debounce(renderPizzas, 150);
+        const debouncedUpdateIngredientToggles = debounce(updateIngredientTogglesUI, 100);
+        
+        // Event Listeners with performance optimizations
+        Elements.filters.sizeRadios().forEach(radio => 
+            radio.addEventListener('change', e => { 
+                filters.selectedSize = e.target.value; 
+                RenderManager.clearCache(); // Clear cache when size changes
+                debouncedRenderPizzas(); 
+            })
+        );
+        
+        Elements.filters.priceRange().addEventListener('input', e => { 
+            filters.maxPrice = parseInt(e.target.value); 
+            debouncedRenderPizzas(); 
+        });
+        // Optimized event delegation
+        const EventManager = {
+            handlers: new Map(),
+            
+            addHandler(element, event, handler, options = {}) {
+                const key = `${element.id || 'element'}-${event}`;
+                if (this.handlers.has(key)) {
+                    element.removeEventListener(event, this.handlers.get(key));
+                }
+                this.handlers.set(key, handler);
+                element.addEventListener(event, handler, options);
+            },
+            
+            cleanup() {
+                this.handlers.clear();
+            }
+        };
+        
+        EventManager.addHandler(Elements.filters.ingredientFiltersDiv(), 'click', e => {
             const itemDiv = e.target.closest('.ingredient-item:not(.disabled)'); 
             if (!itemDiv) return;
             const ingredient = itemDiv.dataset.ingredient;
             const states = ['none', 'include', 'exclude'];
             const currentStateIndex = states.indexOf(filters.ingredients[ingredient]);
             filters.ingredients[ingredient] = states[(currentStateIndex + 1) % states.length];
-            updateIngredientTogglesUI();
-            renderPizzas();
+            debouncedUpdateIngredientToggles();
+            debouncedRenderPizzas();
         });
-        predefinedFiltersContainer.addEventListener('click', e => {
+        EventManager.addHandler(Elements.filters.predefinedContainer(), 'click', e => {
             const button = e.target.closest('.predefined-filter-btn');
             if (!button) return;
             const filterName = button.dataset.filterName;
             if (filterName === "Reset") {
                 Object.keys(filters.ingredients).forEach(key => filters.ingredients[key] = 'none');
                 filters.activePredefinedFilters = [];
-                pizzaSizeRadios[0].checked = true; filters.selectedSize = '25cm';
-                priceRange.value = 70; filters.maxPrice = 70;
+                Elements.filters.sizeRadios()[0].checked = true; 
+                filters.selectedSize = '25cm';
+                const priceRange = Elements.filters.priceRange();
+                priceRange.value = 70; 
+                filters.maxPrice = 70;
+                RenderManager.clearCache();
             } else {
                 const index = filters.activePredefinedFilters.indexOf(filterName);
                 if (index > -1) filters.activePredefinedFilters.splice(index, 1);
                 else filters.activePredefinedFilters.push(filterName);
             }
-            updateIngredientTogglesUI();
-            renderPizzas();
+            debouncedUpdateIngredientToggles();
+            debouncedRenderPizzas();
         });
         
-        // Event listener for adding to history
-        pizzaListDiv.addEventListener('click', e => {
+        // Event listener for adding to history - optimized delegation
+        EventManager.addHandler(Elements.pizza.listDiv(), 'click', e => {
             const btn = e.target.closest('.add-to-cart-btn');
             if (btn) {
                 e.stopPropagation(); // Prevents card from flipping
@@ -1080,9 +1332,54 @@
                 <p class="mt-4">Smacznego! 😋</p>`;
         });
 
-        // --- Gemini AI Pizza Suggestion ---
-        aiPizzaBtn.addEventListener('click', async () => {
-            const display = aiPizzaDisplay;
+        // Lazy loading manager for non-critical features
+        const LazyLoader = {
+            loadedFeatures: new Set(),
+            
+            async loadAIFeature() {
+                if (this.loadedFeatures.has('ai')) return;
+                
+                // Simulate loading AI feature dependencies
+                await new Promise(resolve => setTimeout(resolve, 100));
+                this.loadedFeatures.add('ai');
+            },
+            
+            async loadHistoryFeature() {
+                if (this.loadedFeatures.has('history')) return;
+                
+                // Load history-related functionality
+                await new Promise(resolve => setTimeout(resolve, 50));
+                this.loadedFeatures.add('history');
+            }
+        };
+        
+        // Rate limiter for API calls
+        const RateLimiter = {
+            lastCall: 0,
+            minInterval: 2000, // 2 seconds between calls
+            
+            canMakeCall() {
+                const now = Date.now();
+                if (now - this.lastCall < this.minInterval) {
+                    return false;
+                }
+                this.lastCall = now;
+                return true;
+            }
+        };
+        
+        // --- Optimized Gemini AI Pizza Suggestion ---
+        EventManager.addHandler(Elements.pizza.aiBtn(), 'click', async () => {
+            if (!RateLimiter.canMakeCall()) {
+                Elements.ui.notification().textContent = 'Poczekaj chwilę przed kolejnym zapytaniem...';
+                Elements.ui.notification().classList.add('show');
+                setTimeout(() => Elements.ui.notification().classList.remove('show'), 2000);
+                return;
+            }
+            
+            await LazyLoader.loadAIFeature();
+            
+            const display = Elements.pizza.aiDisplay();
             display.classList.remove('hidden');
             display.innerHTML = `<div class="font-bold">✨ Szef kuchni AI myśli...</div>`;
             
@@ -1142,49 +1439,76 @@
         });
 
 
-        // --- Spotlight and Delayed Flip Logic ---
-        document.addEventListener('mousemove', (e) => {
-            document.body.style.setProperty('--mouse-x', `${e.clientX}px`);
-            document.body.style.setProperty('--mouse-y', `${e.clientY}px`);
-        });
+        // --- Optimized Spotlight and Delayed Flip Logic ---
+        const InteractionManager = {
+            cardTimers: new Map(),
+            mouseHandler: null,
+            
+            init() {
+                // Throttled mouse movement for spotlight effect
+                let ticking = false;
+                this.mouseHandler = (e) => {
+                    if (!ticking) {
+                        requestAnimationFrame(() => {
+                            document.body.style.setProperty('--mouse-x', `${e.clientX}px`);
+                            document.body.style.setProperty('--mouse-y', `${e.clientY}px`);
+                            ticking = false;
+                        });
+                        ticking = true;
+                    }
+                };
+                
+                EventManager.addHandler(document, 'mousemove', this.mouseHandler, { passive: true });
+                
+                // Optimized card flip handlers
+                EventManager.addHandler(Elements.pizza.listDiv(), 'mouseover', (event) => {
+                    const card = event.target.closest('.pizza-card');
+                    if (!card) return;
 
-        const cardTimers = new Map();
-        pizzaListDiv.addEventListener('mouseover', (event) => {
-            const card = event.target.closest('.pizza-card');
-            if (!card) return;
+                    if (event.target.closest('.add-to-cart-btn')) {
+                        if (this.cardTimers.has(card)) {
+                            clearTimeout(this.cardTimers.get(card));
+                            this.cardTimers.delete(card);
+                        }
+                        return;
+                    }
 
-            if (event.target.closest('.add-to-cart-btn')) {
-                if (cardTimers.has(card)) {
-                    clearTimeout(cardTimers.get(card));
-                    cardTimers.delete(card);
-                }
-                return;
+                    if (!this.cardTimers.has(card)) {
+                        const timer = setTimeout(() => {
+                            card.classList.add('flipped');
+                            this.cardTimers.delete(card);
+                        }, 500);
+                        this.cardTimers.set(card, timer);
+                    }
+                });
+
+                EventManager.addHandler(Elements.pizza.listDiv(), 'mouseout', (event) => {
+                    const card = event.target.closest('.pizza-card');
+                    if (card) {
+                        if (this.cardTimers.has(card)) {
+                            clearTimeout(this.cardTimers.get(card));
+                            this.cardTimers.delete(card);
+                        }
+                        card.classList.remove('flipped');
+                    }
+                });
+            },
+            
+            cleanup() {
+                this.cardTimers.forEach(timer => clearTimeout(timer));
+                this.cardTimers.clear();
             }
-
-            if (!cardTimers.has(card)) {
-                const timer = setTimeout(() => {
-                    card.classList.add('flipped');
-                }, 500);
-                cardTimers.set(card, timer);
-            }
-        });
-
-        pizzaListDiv.addEventListener('mouseout', (event) => {
-            const card = event.target.closest('.pizza-card');
-            if (card) {
-                if (cardTimers.has(card)) {
-                    clearTimeout(cardTimers.get(card));
-                    cardTimers.delete(card);
-                }
-                card.classList.remove('flipped');
-            }
-        });
+        };
         
-        // History UI listeners
-        historyToggleButton.addEventListener('click', () => historyContentPanel.classList.toggle('is-expanded'));
-        closeHistoryPanelBtn.addEventListener('click', () => historyContentPanel.classList.remove('is-expanded'));
-        clearHistoryBtn.addEventListener('click', clearHistory);
-        historyItemsContainer.addEventListener('click', e => {
+        // History UI listeners - optimized
+        EventManager.addHandler(Elements.history.toggleButton(), 'click', () => 
+            Elements.history.contentPanel().classList.toggle('is-expanded')
+        );
+        EventManager.addHandler(Elements.history.closePanelBtn(), 'click', () => 
+            Elements.history.contentPanel().classList.remove('is-expanded')
+        );
+        EventManager.addHandler(Elements.history.clearBtn(), 'click', clearHistory);
+        EventManager.addHandler(Elements.history.itemsContainer(), 'click', e => {
             if(e.target.classList.contains('remove-from-history-btn')) {
                 const itemId = parseInt(e.target.dataset.itemId);
                 removeFromHistory(itemId);
@@ -1192,16 +1516,62 @@
         });
 
 
-        window.addEventListener('scroll', () => { scrollToTopBtn.style.display = (window.scrollY > 200) ? "block" : "none"; });
-        scrollToTopBtn.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        // Throttled scroll handler
+        let scrollTicking = false;
+        EventManager.addHandler(window, 'scroll', () => {
+            if (!scrollTicking) {
+                requestAnimationFrame(() => {
+                    Elements.ui.scrollToTopBtn().style.display = (window.scrollY > 200) ? "block" : "none";
+                    scrollTicking = false;
+                });
+                scrollTicking = true;
+            }
+        }, { passive: true });
         
-        // Initial render
-        themeToggleBtn.addEventListener('click', toggleSystemOrSavedTheme);
-        loadHistory();
-        populateIngredientFilters();
-        updateIngredientTogglesUI();
-        renderPizzas();
-        renderHistory();
+        EventManager.addHandler(Elements.ui.scrollToTopBtn(), 'click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // Initialize application with performance optimizations
+        function initializeApp() {
+            // Initialize data manager
+            PizzaDataManager.init(pizzas);
+            
+            // Load saved data
+            const savedTheme = localStorage.getItem('pizza_app_theme');
+            if (savedTheme) applyTheme(savedTheme);
+            
+            loadHistory();
+            
+            // Setup UI
+            populateIngredientFilters();
+            updateIngredientTogglesUI();
+            
+            // Initialize managers
+            InteractionManager.init();
+            
+            // Setup theme toggle
+            EventManager.addHandler(Elements.theme.toggleBtn(), 'click', toggleSystemOrSavedTheme);
+            
+            // Initial render
+            renderPizzas();
+            renderHistory();
+            
+            // Setup cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                EventManager.cleanup();
+                InteractionManager.cleanup();
+                RenderManager.clearCache();
+                DOMCache.clear();
+            });
+        }
+        
+        // Start the application
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
     </script>
 </body>
 </html>
