@@ -156,29 +156,70 @@
             transition: transform 0.3s ease;
         }
 
-        /* Hover zone - only center 70% of card triggers scaling */
-        .pizza-card-hover-zone {
-            position: absolute;
-            top: 15%;
-            left: 15%;
-            width: 70%;
-            height: 70%;
-            z-index: 15;
-            cursor: pointer;
-        }
-
-        .pizza-card-hover-zone:hover ~ .pizza-card-inner,
-        .pizza-card-hover-zone:hover {
-            transform: scale(1.05) translateZ(0);
-        }
-
-        /* Keep flip functionality for entire card */
+        /* Click-to-flip interaction with peel hint */
         .pizza-card {
-            cursor: default;
-        }
-        
-        .pizza-card-inner {
             cursor: pointer;
+            position: relative;
+        }
+
+        /* Subtle peel corner hint */
+        .pizza-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(-45deg, transparent 46%, rgba(255,255,255,0.3) 47%, rgba(255,255,255,0.7) 48%, rgba(255,255,255,0.3) 49%, transparent 50%);
+            border-radius: 0 15px 0 0;
+            z-index: 25;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .pizza-card:hover::before {
+            opacity: 1;
+            animation: peelHint 2s ease-in-out infinite;
+        }
+
+        @keyframes peelHint {
+            0%, 100% { 
+                width: 20px; 
+                height: 20px; 
+                opacity: 0.6;
+            }
+            50% { 
+                width: 25px; 
+                height: 25px; 
+                opacity: 1;
+            }
+        }
+
+        /* Remove old hover zone */
+        .pizza-card-hover-zone {
+            display: none;
+        }
+
+        /* Click hint text */
+        .pizza-card-front::after {
+            content: 'Kliknij - więcej info | Ctrl+klik - porównanie';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .pizza-card:hover .pizza-card-front::after {
+            opacity: 1;
         }
 
         /* Pizza selection for comparison */
@@ -1115,8 +1156,50 @@
                             `<p class="text-blue-600 font-bold mt-2">🟰 Obie pizze kosztują tyle samo!</p>`
                         }
                     </div>
+                    
+                    <!-- FREE SHARING SECTION -->
+                    <div class="sharing-section mt-6 bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-bold mb-3 text-center">💰 Podziel się kosztami (100% za darmo!)</h4>
+                        
+                        <div class="split-calculator mb-4 text-center">
+                            <label class="font-semibold">Liczba osób: </label>
+                            <select id="splitCount" onchange="updateSplitCalculation()" class="mx-2 p-1 border rounded">
+                                <option value="1">Tylko ja</option>
+                                <option value="2" selected>2 osoby</option>
+                                <option value="3">3 osoby</option>
+                                <option value="4">4 osoby</option>
+                                <option value="5">5 osób</option>
+                            </select>
+                            <span id="perPersonCost" class="font-bold text-green-600">Po ${(pizza1.prices[size] / 2).toFixed(2)}zł na osobę</span>
+                        </div>
+                        
+                        <div class="payment-buttons grid grid-cols-2 gap-2 mb-4">
+                            <button onclick="shareViaSMS()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition">
+                                📱 SMS
+                            </button>
+                            <button onclick="shareViaWhatsApp()" class="bg-green-500 text-white p-2 rounded hover:bg-green-600 transition">
+                                💬 WhatsApp
+                            </button>
+                            <button onclick="openSplitwise()" class="bg-orange-500 text-white p-2 rounded hover:bg-orange-600 transition">
+                                📊 Splitwise
+                            </button>
+                            <button onclick="copyPaymentInfo()" class="bg-purple-500 text-white p-2 rounded hover:bg-purple-600 transition">
+                                📋 Kopiuj
+                            </button>
+                        </div>
+                        
+                        <div class="payment-info text-center text-sm bg-white p-3 rounded">
+                            <p class="font-bold">💳 Dane do płatności:</p>
+                            <p>BLIK: <strong>+48 123 456 789</strong></p>
+                            <p>Przelew: <strong>PL12 3456 7890 1234 5678 9012 3456</strong></p>
+                            <button onclick="generateQR()" class="mt-2 bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600 transition">
+                                📱 Kod QR
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="mt-4 text-center">
-                        <button onclick="ComparisonManager.clearSelection()" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <button onclick="ComparisonManager.clearSelection()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
                             Wyczyść wybór
                         </button>
                     </div>
@@ -1124,6 +1207,15 @@
                 
                 Elements.pizza.comparisonDisplay().innerHTML = comparisonHtml;
                 Elements.pizza.comparisonDisplay().classList.remove('hidden');
+                
+                // Store current comparison data for sharing
+                window.currentComparison = {
+                    pizza1: pizza1.name,
+                    pizza2: pizza2.name,
+                    totalPrice: pizza1.prices[size],
+                    size: size,
+                    description: `${pizza1.name} vs ${pizza2.name} (${size})`
+                };
             },
             
             clearSelection() {
@@ -1197,7 +1289,6 @@
                 pizzaCard.className = 'pizza-card';
                 pizzaCard.dataset.spice = pizza.spice;
                 pizzaCard.innerHTML = `
-                    <div class="pizza-card-hover-zone"></div>
                     <div class="pizza-card-inner">
                         <div class="pizza-card-front">
                              <h3>${pizza.name} ${getPizzaEmoji(pizza.name)}</h3>
@@ -1479,7 +1570,7 @@
             debouncedRenderPizzas();
         });
         
-        // Event listener for favorites and comparison - optimized delegation
+        // Event listener for favorites, flipping, and comparison - optimized delegation
         EventManager.addHandler(Elements.pizza.listDiv(), 'click', e => {
             const favBtn = e.target.closest('.add-to-favorites-btn');
             if (favBtn) {
@@ -1490,12 +1581,18 @@
                 return;
             }
             
-            // Pizza card click for comparison selection
+            // Pizza card click for flipping and comparison
             const pizzaCard = e.target.closest('.pizza-card');
             if (pizzaCard && !e.target.closest('.add-to-favorites-btn')) {
-                const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
-                if (pizzaName) {
-                    ComparisonManager.selectPizzaForComparison(pizzaName);
+                // Toggle flip state
+                pizzaCard.classList.toggle('flipped');
+                
+                // If holding Ctrl/Cmd, select for comparison instead
+                if (e.ctrlKey || e.metaKey) {
+                    const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
+                    if (pizzaName) {
+                        ComparisonManager.selectPizzaForComparison(pizzaName);
+                    }
                 }
             }
         });
@@ -1561,16 +1658,120 @@
             ComparisonManager.showComparison();
         });
 
+        // Global helper functions for sharing (called from inline onclick)
+        window.updateSplitCalculation = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const totalPrice = window.currentComparison?.totalPrice || 0;
+            const perPerson = (totalPrice / splitCount).toFixed(2);
+            document.getElementById('perPersonCost').textContent = `Po ${perPerson}zł na osobę`;
+        };
 
-        // --- Optimized Spotlight and Delayed Flip Logic ---
-        const InteractionManager = {
-            cardTimers: new Map(),
-            mouseHandler: null,
+        window.shareViaSMS = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const sharing = SharingManager.shareViaDeepLinks(window.currentComparison, splitCount);
+            sharing.sms();
+        };
+
+        window.shareViaWhatsApp = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const sharing = SharingManager.shareViaDeepLinks(window.currentComparison, splitCount);
+            sharing.whatsapp();
+        };
+
+        window.openSplitwise = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const sharing = SharingManager.shareViaDeepLinks(window.currentComparison, splitCount);
+            sharing.splitwise();
+        };
+
+        window.copyPaymentInfo = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const sharing = SharingManager.shareViaDeepLinks(window.currentComparison, splitCount);
+            sharing.copy();
+        };
+
+        window.generateQR = function() {
+            const splitCount = document.getElementById('splitCount').value;
+            const sharing = SharingManager.shareViaDeepLinks(window.currentComparison, splitCount);
+            sharing.qr();
+        };
+
+
+        // --- Free Sharing Solution with Deep Links ---
+        const SharingManager = {
+            // Free sharing via native apps - no external APIs needed
+            shareViaDeepLinks(pizzaData, splitCount = 2) {
+                const costPerPerson = (pizzaData.totalPrice / splitCount).toFixed(2);
+                const message = this.generateShareMessage(pizzaData, splitCount, costPerPerson);
+                
+                return {
+                    sms: () => this.openSMS(message),
+                    whatsapp: () => this.openWhatsApp(message),
+                    splitwise: () => this.openSplitwise(pizzaData, splitCount),
+                    copy: () => this.copyToClipboard(message),
+                    qr: () => this.generateQR(message)
+                };
+            },
             
+            generateShareMessage(pizzaData, splitCount, costPerPerson) {
+                return `🍕 Zamówienie pizzy!\n\n` +
+                       `${pizzaData.description}\n` +
+                       `Koszt total: ${pizzaData.totalPrice}zł\n` +
+                       `Liczba osób: ${splitCount}\n` +
+                       `Na osobę: ${costPerPerson}zł\n\n` +
+                       `💳 Wyślij BLIK na: +48 123 456 789\n` +
+                       `Lub przelew: PL12 3456 7890 1234 5678 9012 3456\n\n` +
+                       `🍕 Smacznego!`;
+            },
+            
+            openSMS(message) {
+                // Opens native SMS app
+                window.location.href = `sms:?body=${encodeURIComponent(message)}`;
+            },
+            
+            openWhatsApp(message) {
+                // Opens WhatsApp with pre-filled message
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            },
+            
+            openSplitwise(pizzaData, splitCount) {
+                // Deep link to Splitwise app or web
+                const splitwiseApp = `splitwise://add_expense?` +
+                    `description=${encodeURIComponent(pizzaData.description)}` +
+                    `&cost=${pizzaData.totalPrice}` +
+                    `&currency=PLN` +
+                    `&split_equally=true`;
+                
+                const splitwiseWeb = `https://secure.splitwise.com/expenses/new?` +
+                    `description=${encodeURIComponent(pizzaData.description)}` +
+                    `&cost=${pizzaData.totalPrice}` +
+                    `&currency=PLN`;
+                
+                // Try app first, fallback to web
+                window.location.href = splitwiseApp;
+                setTimeout(() => window.open(splitwiseWeb, '_blank'), 1500);
+            },
+            
+            copyToClipboard(message) {
+                navigator.clipboard.writeText(message).then(() => {
+                    showNotification('📋 Skopiowano do schowka!');
+                });
+            },
+            
+            generateQR(message) {
+                // Free QR code generation
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(message)}`;
+                window.open(qrUrl, '_blank');
+            }
+        };
+
+        // --- Simplified Interaction Manager ---
+        const InteractionManager = {
             init() {
                 // Throttled mouse movement for spotlight effect
                 let ticking = false;
-                this.mouseHandler = (e) => {
+                const mouseHandler = (e) => {
                     if (!ticking) {
                         requestAnimationFrame(() => {
                             document.body.style.setProperty('--mouse-x', `${e.clientX}px`);
@@ -1581,45 +1782,11 @@
                     }
                 };
                 
-                EventManager.addHandler(document, 'mousemove', this.mouseHandler, { passive: true });
-                
-                // Optimized card flip handlers
-                EventManager.addHandler(Elements.pizza.listDiv(), 'mouseover', (event) => {
-                    const card = event.target.closest('.pizza-card');
-                    if (!card) return;
-
-                    if (event.target.closest('.add-to-cart-btn')) {
-                        if (this.cardTimers.has(card)) {
-                            clearTimeout(this.cardTimers.get(card));
-                            this.cardTimers.delete(card);
-                        }
-                        return;
-                    }
-
-                    if (!this.cardTimers.has(card)) {
-                        const timer = setTimeout(() => {
-                            card.classList.add('flipped');
-                            this.cardTimers.delete(card);
-                        }, 500);
-                        this.cardTimers.set(card, timer);
-                    }
-                });
-
-                EventManager.addHandler(Elements.pizza.listDiv(), 'mouseout', (event) => {
-                    const card = event.target.closest('.pizza-card');
-                    if (card) {
-                        if (this.cardTimers.has(card)) {
-                            clearTimeout(this.cardTimers.get(card));
-                            this.cardTimers.delete(card);
-                        }
-                        card.classList.remove('flipped');
-                    }
-                });
+                EventManager.addHandler(document, 'mousemove', mouseHandler, { passive: true });
             },
             
             cleanup() {
-                this.cardTimers.forEach(timer => clearTimeout(timer));
-                this.cardTimers.clear();
+                // Cleanup handled by EventManager
             }
         };
         
