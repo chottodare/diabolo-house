@@ -200,9 +200,9 @@
             display: none;
         }
 
-        /* Click hint text */
+        /* Intuitive selection hints */
         .pizza-card-front::after {
-            content: 'Kliknij - więcej info | Ctrl+klik - porównanie';
+            content: 'Kliknij - więcej info | Długie naciśnięcie - wybierz do porównania';
             position: absolute;
             bottom: 10px;
             left: 50%;
@@ -211,38 +211,81 @@
             color: white;
             padding: 4px 8px;
             border-radius: 12px;
-            font-size: 10px;
+            font-size: 9px;
             opacity: 0;
             transition: opacity 0.3s ease;
             pointer-events: none;
             white-space: nowrap;
+            text-align: center;
+            line-height: 1.2;
         }
 
         .pizza-card:hover .pizza-card-front::after {
             opacity: 1;
         }
 
-        /* Pizza selection for comparison */
-        .pizza-card.selected-for-comparison {
-            box-shadow: 0 0 0 3px var(--accent-color);
-            transform: scale(1.02);
+        /* Pizza selection states with smooth animations */
+        .pizza-card {
+            transition: all 0.3s ease;
         }
 
-        .pizza-card.selected-for-comparison::after {
-            content: '✓';
+        .pizza-card.selected-for-comparison {
+            background: linear-gradient(135deg, rgba(224, 82, 68, 0.2), rgba(224, 82, 68, 0.1));
+            border: 3px solid var(--accent-color);
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(224, 82, 68, 0.3);
+        }
+
+        .pizza-card.selected-for-comparison::before {
+            content: '✓ WYBRANA';
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: white;
+            border-radius: 15px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 25;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Selection counter badge */
+        .selection-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
             background: var(--accent-color);
             color: white;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 60px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            z-index: 20;
+            font-size: 14px;
+            z-index: 100;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .selection-counter.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .selection-counter.pulse {
+            animation: pulse 0.6s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
         .pizza-card-inner {
@@ -815,6 +858,11 @@
     </div>
 
     <button id="scrollToTopBtn" class="scroll-to-top-btn">⬆️</button>
+    
+    <!-- Selection Counter -->
+    <div id="selectionCounter" class="selection-counter">
+        <span id="selectionCount">0/2</span>
+    </div>
 
     <script>
         // Performance optimizations - DOM cache and utilities
@@ -1001,7 +1049,9 @@
             },
             ui: {
                 scrollToTopBtn: () => DOMCache.get('scrollToTopBtn'),
-                notification: () => DOMCache.get('notification')
+                notification: () => DOMCache.get('notification'),
+                selectionCounter: () => DOMCache.get('selectionCounter'),
+                selectionCount: () => DOMCache.get('selectionCount')
             }
         };
 
@@ -1109,6 +1159,29 @@
                     const isSelected = selectedPizzasForComparison.find(p => p.name === pizzaName);
                     card.classList.toggle('selected-for-comparison', !!isSelected);
                 });
+                
+                // Update selection counter
+                const counter = document.getElementById('selectionCounter');
+                const count = document.getElementById('selectionCount');
+                const selectedCount = selectedPizzasForComparison.length;
+                
+                count.textContent = `${selectedCount}/2`;
+                
+                if (selectedCount > 0) {
+                    counter.classList.add('show');
+                    counter.classList.add('pulse');
+                    setTimeout(() => counter.classList.remove('pulse'), 600);
+                } else {
+                    counter.classList.remove('show');
+                }
+                
+                // Auto-show comparison when 2 pizzas selected
+                if (selectedCount === 2) {
+                    setTimeout(() => {
+                        this.showComparison();
+                        showNotification('🍕 Porównanie gotowe! Sprawdź poniżej sekcję podziału kosztów.');
+                    }, 300);
+                }
             },
             
             showComparison() {
@@ -1223,6 +1296,7 @@
                 this.updateComparisonButton();
                 this.updateSelectionIndicators();
                 Elements.pizza.comparisonDisplay().classList.add('hidden');
+                Elements.ui.selectionCounter().classList.remove('show');
             }
         };
         
@@ -1570,32 +1644,85 @@
             debouncedRenderPizzas();
         });
         
-        // Event listener for favorites, flipping, and comparison - optimized delegation
-        EventManager.addHandler(Elements.pizza.listDiv(), 'click', e => {
-            const favBtn = e.target.closest('.add-to-favorites-btn');
-            if (favBtn) {
-                e.stopPropagation(); // Prevents card from flipping
-                const pizzaName = favBtn.dataset.pizzaName;
-                FavoritesManager.toggleFavorite(pizzaName);
-                addToHistory(pizzaName); // Keep history for now
-                return;
-            }
+        // Enhanced pizza selection system with hold/press functionality
+        const PizzaSelectionManager = {
+            holdTimer: null,
+            holdDuration: 500, // 500ms hold to select
             
-            // Pizza card click for flipping and comparison
+            startHold(pizzaCard, pizzaName) {
+                this.holdTimer = setTimeout(() => {
+                    ComparisonManager.selectPizzaForComparison(pizzaName);
+                    // Haptic feedback if available
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }, this.holdDuration);
+            },
+            
+            cancelHold() {
+                if (this.holdTimer) {
+                    clearTimeout(this.holdTimer);
+                    this.holdTimer = null;
+                }
+            }
+        };
+
+        // Event listener for favorites, flipping, and selection - optimized delegation
+        EventManager.addHandler(Elements.pizza.listDiv(), 'mousedown', e => {
+            const favBtn = e.target.closest('.add-to-favorites-btn');
+            if (favBtn) return;
+            
             const pizzaCard = e.target.closest('.pizza-card');
             if (pizzaCard && !e.target.closest('.add-to-favorites-btn')) {
-                // Toggle flip state
-                pizzaCard.classList.toggle('flipped');
-                
-                // If holding Ctrl/Cmd, select for comparison instead
-                if (e.ctrlKey || e.metaKey) {
-                    const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
-                    if (pizzaName) {
-                        ComparisonManager.selectPizzaForComparison(pizzaName);
-                    }
+                const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
+                if (pizzaName) {
+                    PizzaSelectionManager.startHold(pizzaCard, pizzaName);
                 }
             }
         });
+
+        EventManager.addHandler(Elements.pizza.listDiv(), 'mouseup', e => {
+            PizzaSelectionManager.cancelHold();
+        });
+
+        EventManager.addHandler(Elements.pizza.listDiv(), 'mouseleave', e => {
+            PizzaSelectionManager.cancelHold();
+        });
+
+        EventManager.addHandler(Elements.pizza.listDiv(), 'click', e => {
+            const favBtn = e.target.closest('.add-to-favorites-btn');
+            if (favBtn) {
+                e.stopPropagation();
+                const pizzaName = favBtn.dataset.pizzaName;
+                FavoritesManager.toggleFavorite(pizzaName);
+                addToHistory(pizzaName);
+                return;
+            }
+            
+            // Quick click for flipping (only if not selected for comparison)
+            const pizzaCard = e.target.closest('.pizza-card');
+            if (pizzaCard && !e.target.closest('.add-to-favorites-btn')) {
+                if (!pizzaCard.classList.contains('selected-for-comparison')) {
+                    pizzaCard.classList.toggle('flipped');
+                }
+            }
+        });
+
+        // Touch events for mobile
+        EventManager.addHandler(Elements.pizza.listDiv(), 'touchstart', e => {
+            const favBtn = e.target.closest('.add-to-favorites-btn');
+            if (favBtn) return;
+            
+            const pizzaCard = e.target.closest('.pizza-card');
+            if (pizzaCard && !e.target.closest('.add-to-favorites-btn')) {
+                const pizzaName = pizzaCard.querySelector('.add-to-favorites-btn')?.dataset.pizzaName;
+                if (pizzaName) {
+                    PizzaSelectionManager.startHold(pizzaCard, pizzaName);
+                }
+            }
+        }, { passive: true });
+
+        EventManager.addHandler(Elements.pizza.listDiv(), 'touchend', e => {
+            PizzaSelectionManager.cancelHold();
+        }, { passive: true });
 
         const setupButtonListener = (btn, display, generatorFn) => {
             btn.addEventListener('click', () => {
