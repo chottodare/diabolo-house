@@ -288,6 +288,44 @@
             50% { transform: scale(1.1); }
         }
 
+        /* Menu toggle button */
+        .menu-toggle-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            z-index: 101;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            border: none;
+        }
+
+        .menu-toggle-btn:hover {
+            background: var(--button-primary-hover-bg);
+            transform: scale(1.1);
+        }
+
+        /* Pizza list container states */
+        .pizza-container {
+            transition: all 0.3s ease;
+        }
+
+        .pizza-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-20px);
+        }
+
         .pizza-card-inner {
             position: relative;
             width: 100%;
@@ -797,8 +835,11 @@
                 </div>
             </aside>
 
-            <main class="w-full lg:w-2/3 xl:w-3/4 pb-24"> <div id="pizzaList" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <main class="w-full lg:w-2/3 xl:w-3/4 pb-24">
+                <div id="pizzaContainer" class="pizza-container">
+                    <div id="pizzaList" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                     </div>
+                </div>
 
                 <div class="mt-10 text-center">
                     <button id="randomPizzaBtn" class="action-button font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
@@ -863,6 +904,11 @@
     <div id="selectionCounter" class="selection-counter">
         <span id="selectionCount">0/2</span>
     </div>
+    
+    <!-- Menu Toggle Button -->
+    <button id="menuToggleBtn" class="menu-toggle-btn" title="Pokaż/Ukryj listę pizz">
+        🍕
+    </button>
 
     <script>
         // Performance optimizations - DOM cache and utilities
@@ -1051,7 +1097,9 @@
                 scrollToTopBtn: () => DOMCache.get('scrollToTopBtn'),
                 notification: () => DOMCache.get('notification'),
                 selectionCounter: () => DOMCache.get('selectionCounter'),
-                selectionCount: () => DOMCache.get('selectionCount')
+                selectionCount: () => DOMCache.get('selectionCount'),
+                menuToggleBtn: () => DOMCache.get('menuToggleBtn'),
+                pizzaContainer: () => DOMCache.get('pizzaContainer')
             }
         };
 
@@ -1179,6 +1227,16 @@
                 if (selectedCount === 2) {
                     setTimeout(() => {
                         this.showComparison();
+                        
+                        // Auto-scroll to comparison section
+                        setTimeout(() => {
+                            const comparisonElement = Elements.pizza.comparisonDisplay();
+                            comparisonElement.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start' 
+                            });
+                        }, 100);
+                        
                         showNotification('🍕 Porównanie gotowe! Sprawdź poniżej sekcję podziału kosztów.');
                     }, 300);
                 }
@@ -1531,6 +1589,9 @@
         }
 
         function renderHistory() {
+            const historyItemsContainer = Elements.history.itemsContainer();
+            const historyItemCountEl = Elements.history.itemCountEl();
+            
             historyItemsContainer.innerHTML = '';
             if (history.length === 0) {
                 historyItemsContainer.innerHTML = '<p class="text-center">Historia jest pusta.</p>';
@@ -1947,6 +2008,38 @@
         
         EventManager.addHandler(Elements.ui.scrollToTopBtn(), 'click', () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Menu toggle functionality
+        let menuVisible = true;
+        EventManager.addHandler(Elements.ui.menuToggleBtn(), 'click', () => {
+            const pizzaContainer = Elements.ui.pizzaContainer();
+            const toggleBtn = Elements.ui.menuToggleBtn();
+            
+            menuVisible = !menuVisible;
+            
+            if (menuVisible) {
+                pizzaContainer.classList.remove('hidden');
+                toggleBtn.textContent = '🍕';
+                toggleBtn.title = 'Ukryj listę pizz';
+                showNotification('Lista pizz pokazana');
+            } else {
+                pizzaContainer.classList.add('hidden');
+                toggleBtn.textContent = '📋';
+                toggleBtn.title = 'Pokaż listę pizz';
+                showNotification('Lista pizz ukryta - widać tylko porównanie');
+                
+                // Auto-scroll to comparison if it exists
+                setTimeout(() => {
+                    const comparisonElement = Elements.pizza.comparisonDisplay();
+                    if (!comparisonElement.classList.contains('hidden')) {
+                        comparisonElement.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }
+                }, 300);
+            }
         });
         
         // Initialize application with performance optimizations
